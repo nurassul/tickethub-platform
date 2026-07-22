@@ -55,6 +55,7 @@ public class Event {
     void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        status = EventStatus.DRAFT;
     }
 
     @PreUpdate
