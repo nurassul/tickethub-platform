@@ -27,7 +27,7 @@ public class EvenController {
     private final EventService eventService;
 
 
-    @PostMapping()
+    @PostMapping("/admin")
     public ResponseEntity<EventResponse> createEvent(
             @RequestBody CreateEventRequest request
     ) {
@@ -39,7 +39,7 @@ public class EvenController {
                 .body(response);
     }
 
-    @PostMapping("/{eventID/publish}")
+    @PostMapping("/admin/{eventID/publish}")
     public ResponseEntity<EventResponse> publishEvent(
             @PathVariable UUID eventID
     ) {
@@ -51,7 +51,7 @@ public class EvenController {
                 .body(response);
     }
 
-    @PostMapping("/{eventID/cancel}")
+    @PostMapping("/admin/{eventID/cancel}")
     public ResponseEntity<EventResponse> cancelEvent(
             @PathVariable UUID eventID
     ) {

@@ -32,6 +32,10 @@ subprojects {
         implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
         implementation("com.fasterxml.jackson.module:jackson-module-parameter-names:2.17.2")
 
+        dependencies {
+            implementation("org.springframework.boot:spring-boot-starter-validation")
+        }
+
         // Тестирование
         testImplementation("org.springframework.boot:spring-boot-starter-test")
         testImplementation(platform("org.junit:junit-bom:5.10.0"))

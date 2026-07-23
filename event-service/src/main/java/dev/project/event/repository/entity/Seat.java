@@ -24,8 +24,6 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Seat {
-
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -49,7 +47,4 @@ public class Seat {
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
-
-    @Column(nullable = false)
-    private boolean active;
 }
