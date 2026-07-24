@@ -13,7 +13,7 @@ import java.util.UUID;
         name = "seats",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_even_seat_position",
+                        name = "uk_event_seat_position",
                         columnNames = {"event_id", "sector", "row_number", "seat_number"}
                 )
         }
@@ -42,7 +42,7 @@ public class Seat {
     private String seatNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "type", nullable = false)
     private SeatType type;
 
     @Column(nullable = false, precision = 12, scale = 2)

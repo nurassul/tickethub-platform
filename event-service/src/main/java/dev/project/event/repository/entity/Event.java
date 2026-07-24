@@ -44,7 +44,8 @@ public class Event {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private EventStatus status;
+    @Builder.Default
+    private EventStatus status = EventStatus.DRAFT;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -55,7 +56,6 @@ public class Event {
     void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-        status = EventStatus.DRAFT;
     }
 
     @PreUpdate
