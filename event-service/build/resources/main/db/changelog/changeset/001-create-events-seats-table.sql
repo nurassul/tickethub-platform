@@ -1,4 +1,6 @@
-CREATE TABLE events
+CREATE SCHEMA event_service;
+
+CREATE TABLE event_service.events
 (
     id            UUID                        NOT NULL,
     title         VARCHAR(200)                NOT NULL,
@@ -18,7 +20,7 @@ CREATE TABLE events
         CHECK (ends_at > starts_at)
 );
 
-CREATE TABLE seats
+CREATE TABLE event_service.seats
 (
     id          UUID           NOT NULL,
     event_id    UUID           NOT NULL,

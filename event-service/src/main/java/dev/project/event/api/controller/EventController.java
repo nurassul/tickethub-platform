@@ -22,7 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/events")
 @Slf4j
-public class EvenController {
+public class EventController {
 
     private final EventService eventService;
 
@@ -39,7 +39,7 @@ public class EvenController {
                 .body(response);
     }
 
-    @PostMapping("/admin/{eventID/publish}")
+    @PostMapping("/admin/{eventID}/publish")
     public ResponseEntity<EventResponse> publishEvent(
             @PathVariable UUID eventID
     ) {
@@ -51,7 +51,7 @@ public class EvenController {
                 .body(response);
     }
 
-    @PostMapping("/admin/{eventID/cancel}")
+    @PostMapping("/admin/{eventID}/cancel")
     public ResponseEntity<EventResponse> cancelEvent(
             @PathVariable UUID eventID
     ) {
@@ -76,7 +76,7 @@ public class EvenController {
                 .body(response);
     }
 
-    @GetMapping
+    @GetMapping("/admin")
     public Page<EventResponse> getEvents(
             @RequestParam EventStatus status,
             @PageableDefault(

@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: postgres-db
+
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: postgres
+
+    ports:
+      - "127.0.0.1:5433:5432"
+
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db-init/create-databases.sql:/docker-entrypoint-initdb.d/create-databases.sql
+
+    networks:
+      - app-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  user-api:
+    ports:
+      - "8084:8084"
+    build:
+      context: .
+      dockerfile: event-service/Dockerfile
+    container_name: event-api
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/event_db
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+
+networks:
+  app-network:
+
+volumes:
+  db_data:
