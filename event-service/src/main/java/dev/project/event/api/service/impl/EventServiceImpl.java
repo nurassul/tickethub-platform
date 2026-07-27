@@ -3,6 +3,7 @@ package dev.project.event.api.service.impl;
 import dev.project.event.api.service.EventService;
 import dev.project.event.dto.event.CreateEventRequest;
 import dev.project.event.dto.event.EventResponse;
+import dev.project.event.dto.event.UpdateEventRequest;
 import dev.project.event.repository.EventRepository;
 import dev.project.event.repository.SeatRepository;
 import dev.project.event.repository.entity.Event;
@@ -15,7 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.NoSuchElementException;
 import java.util.UUID;
 
 
@@ -44,7 +44,7 @@ public class EventServiceImpl implements EventService {
         return mapper.toResponse(savedEvent);
     }
 
-    public EventResponse findTaskById(UUID eventID) {
+    public EventResponse findEventById(UUID eventID) {
         Event event = getEventById(eventID);
 
         return mapper.toResponse(event);
@@ -59,6 +59,33 @@ public class EventServiceImpl implements EventService {
         Page<Event> events = eventRepository.findAllByStatus(status, pageable);
 
         return events.map(mapper::toResponse);
+    }
+
+    @Override
+    public EventResponse updateEvent(UUID eventID, UpdateEventRequest request) {
+        Event event = getEventById(eventID);
+
+        if (event.getStatus() != EventStatus.DRAFT) {
+            throw new IllegalStateException(
+                    "Only draft event can be edited"
+            );
+        }
+
+        if (!request.endsAt().isAfter(request.startsAt())) {
+            throw new IllegalArgumentException(
+                    "'endsAt' must be after 'startsAt'"
+            );
+        }
+
+        event.setTitle(request.title());
+        event.setDescription(request.description());
+        event.setStartsAt(request.startsAt());
+        event.setEndsAt(request.endsAt());
+        event.setCity(request.city());
+        event.setVenueName(request.venueName());
+        event.setVenueAddress(request.venueAddress());
+
+        return mapper.toResponse(event);
     }
 
 

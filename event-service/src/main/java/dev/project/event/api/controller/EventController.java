@@ -4,8 +4,9 @@ package dev.project.event.api.controller;
 import dev.project.event.api.service.EventService;
 import dev.project.event.dto.event.CreateEventRequest;
 import dev.project.event.dto.event.EventResponse;
+import dev.project.event.dto.event.UpdateEventRequest;
 import dev.project.event.repository.entity.enums.EventStatus;
-import lombok.AllArgsConstructor;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -29,7 +30,7 @@ public class EventController {
 
     @PostMapping("/admin")
     public ResponseEntity<EventResponse> createEvent(
-            @RequestBody CreateEventRequest request
+            @Valid @RequestBody CreateEventRequest request
     ) {
         log.info("Called createEvent()");
 
@@ -39,7 +40,7 @@ public class EventController {
                 .body(response);
     }
 
-    @PostMapping("/admin/{eventID}/publish")
+    @PatchMapping("/admin/{eventID}/publish")
     public ResponseEntity<EventResponse> publishEvent(
             @PathVariable UUID eventID
     ) {
@@ -51,13 +52,26 @@ public class EventController {
                 .body(response);
     }
 
-    @PostMapping("/admin/{eventID}/cancel")
+    @PatchMapping("/admin/{eventID}/cancel")
     public ResponseEntity<EventResponse> cancelEvent(
             @PathVariable UUID eventID
     ) {
         log.info("Called cancelEvent() with id={}", eventID);
 
         var response = eventService.cancelEvent(eventID);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(response);
+    }
+
+    @PutMapping("/admin/{eventID}/edit")
+    public ResponseEntity<EventResponse> updateEvent(
+            @PathVariable UUID eventID,
+            @Valid @RequestBody UpdateEventRequest request
+    ) {
+        log.info("Called updateEvent() with id={}", eventID);
+
+        var response = eventService.updateEvent(eventID, request);
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(response);
@@ -70,7 +84,7 @@ public class EventController {
     ) {
         log.info("Called getEventById() with id={}", eventID);
 
-        var response = eventService.findTaskById(eventID);
+        var response = eventService.findEventById(eventID);
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(response);

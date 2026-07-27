@@ -3,7 +3,6 @@ package dev.project.event.api.service.impl;
 
 import dev.project.event.api.service.SeatService;
 import dev.project.event.dto.seat.CreateSeatBatchRequest;
-import dev.project.event.dto.seat.CreateSeatRequest;
 import dev.project.event.dto.seat.SeatBatchResponse;
 import dev.project.event.dto.seat.SeatResponse;
 import dev.project.event.repository.EventRepository;
@@ -17,12 +16,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @RequiredArgsConstructor
 @Service
+@Transactional
 public class SeatServiceImpl implements SeatService {
 
     private final SeatRepository seatRepository;

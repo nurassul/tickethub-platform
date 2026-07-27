@@ -1,17 +1,19 @@
 package dev.project.event.dto.event;
 
 import dev.project.event.repository.entity.enums.EventStatus;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record UpdateEventRequest(
-        String title,
+        @NotBlank String title,
         String description,
-        LocalDateTime startsAt,
-        LocalDateTime endsAt,
-        String city,
-        String venueName,
+        @NotNull LocalDateTime startsAt,
+        @NotNull LocalDateTime endsAt,
+        @NotBlank String city,
+        @NotBlank String venueName,
         String venueAddress
 ) {
 }
