@@ -1,4 +1,6 @@
 services:
+
+  # PostgreSQL
   db:
     image: postgres:15-alpine
     container_name: postgres-db
@@ -24,7 +26,17 @@ services:
       timeout: 5s
       retries: 5
 
-  user-api:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+
+  # Microservices
+  event-api:
     ports:
       - "8084:8084"
     build:
@@ -34,12 +46,38 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - app-network
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/event_db
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+
+  booking-api:
+    build:
+      context: .
+      dockerfile: booking-service/Dockerfile
+    container_name: booking-api
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      event-api:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/booking_db
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      EVENT_SERVICE_URL: http://event-api:8084
+    ports:
+      - "8081:8081"
+    networks:
+      - app-network
 
 networks:
   app-network:

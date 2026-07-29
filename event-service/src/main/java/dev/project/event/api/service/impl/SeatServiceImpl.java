@@ -5,6 +5,9 @@ import dev.project.event.api.service.SeatService;
 import dev.project.event.dto.seat.CreateSeatBatchRequest;
 import dev.project.event.dto.seat.SeatBatchResponse;
 import dev.project.event.dto.seat.SeatResponse;
+import dev.project.event.dto.seat.booking.ValidateSeatsRequest;
+import dev.project.event.dto.seat.booking.ValidatedSeatResponse;
+import dev.project.event.dto.seat.booking.ValidatedSeatsResponse;
 import dev.project.event.repository.EventRepository;
 import dev.project.event.repository.SeatRepository;
 import dev.project.event.repository.entity.Event;
@@ -16,7 +19,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -68,5 +73,47 @@ public class SeatServiceImpl implements SeatService {
                 .toList();
 
         return new SeatBatchResponse(eventID, seats);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public ValidatedSeatsResponse validateSeats(
+            UUID eventId,
+            ValidateSeatsRequest request
+    ) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event not found with id=" + eventId));
+
+
+        if (event.getStatus() != EventStatus.PUBLISHED) {
+            throw new IllegalStateException(
+                    "Bookings are allowed only for PUBLISHED events!"
+            );
+        }
+
+        Set<UUID> uniqueSeatIds = new HashSet<>(request.seatIds());
+
+        if (uniqueSeatIds.size() != request.seatIds().size()){
+            throw new IllegalArgumentException("Seat IDs must be unique");
+        }
+
+        List<Seat> seats = seatRepository.findAllByEvent_IdAndIdIn(
+                eventId,
+                uniqueSeatIds
+        );
+        if (seats.size() != uniqueSeatIds.size()) {
+            throw new IllegalArgumentException(
+                    "Some seats do not exist or do not belong to this event"
+            );
+        }
+
+        List<ValidatedSeatResponse> responseSeats = seats.stream()
+                .map(seat -> new ValidatedSeatResponse(
+                        seat.getId(),
+                        seat.getPrice()
+                ))
+                .toList();
+
+        return new ValidatedSeatsResponse(eventId, responseSeats);
     }
 }
