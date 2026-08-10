@@ -22,6 +22,7 @@ import java.util.UUID;
 public class BookingController {
 
     private final BookingService bookingService;
+    
 
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(
