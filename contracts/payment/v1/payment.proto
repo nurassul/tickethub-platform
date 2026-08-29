@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package payment.v1;
+
+option java_multiple_files = true;
+option java_package = "dev.project.contracts.payment.v1";
+option java_outer_classname = "PaymentProto";
+
+option go_package = "payment-service/gen/payment/v1;paymentv1";
+
+service PaymentService {
+  rpc CreatePayment(CreatePaymentRequest) returns (PaymentResponse);
+  rpc GetPayment(GetPaymentRequest) returns (PaymentResponse);
+}
+
+
+message CreatePaymentRequest {
+  string booking_id = 1;
+  int64 amount_minor = 2;
+  string currency = 3;
+  int64 booking_expires_at_unix = 4;
+  string idempotency_key = 5;
+}
+
+message GetPaymentRequest {
+  string payment_id = 1;
+}
+
+
+message PaymentResponse {
+  string payment_id = 1;
+  string booking_id = 2;
+  int64 amount_minor = 3;
+  string currency = 4;
+  string status = 5;
+  string payment_url = 6;
+  string failure_reason = 7;
+  int64 booking_expires_at_unix = 8;
+  int64 created_at_unix = 9;
+  int64 updated_at_unix = 10;
+  optional int64 paid_at_unix = 11;
+}

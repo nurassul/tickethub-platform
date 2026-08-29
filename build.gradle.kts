@@ -25,6 +25,17 @@ subprojects {
         compileOnly("org.projectlombok:lombok")
         annotationProcessor("org.projectlombok:lombok")
 
+        implementation("org.mapstruct:mapstruct:1.6.0")
+        annotationProcessor("org.mapstruct:mapstruct-processor:1.6.0")
+
+        // JSON (pick one)
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
+        implementation("com.fasterxml.jackson.module:jackson-module-parameter-names:2.17.2")
+
+        dependencies {
+            implementation("org.springframework.boot:spring-boot-starter-validation")
+        }
+
         // Тестирование
         testImplementation("org.springframework.boot:spring-boot-starter-test")
         testImplementation(platform("org.junit:junit-bom:5.10.0"))
