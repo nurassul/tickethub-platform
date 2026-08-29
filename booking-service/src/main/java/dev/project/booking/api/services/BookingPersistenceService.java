@@ -1,10 +1,7 @@
 package dev.project.booking.api.services;
 
 
-import dev.project.booking.dto.BookingData;
-import dev.project.booking.dto.BookingResponse;
-import dev.project.booking.dto.BookingSeatResponse;
-import dev.project.booking.dto.CreateBookingRequest;
+import dev.project.booking.dto.*;
 import dev.project.booking.dto.feign.ValidatedSeatsResponse;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.repository.entity.BookingSeat;
@@ -22,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,14 +32,13 @@ public class BookingPersistenceService {
     private final SeatReservationRepository seatReservationRepository;
 
 
-
     @Transactional
     public BookingResponse create(
             UUID bookingId,
             CreateBookingRequest request,
             ValidatedSeatsResponse validated
     ) {
-        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(10);
+        LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(10);
 
         Booking booking = Booking.builder()
                 .id(bookingId)
@@ -165,6 +162,42 @@ public class BookingPersistenceService {
         );
     }
 
+
+    @Transactional(readOnly = true)
+    public BookingPaymentData getPaymentData(
+            UUID bookingId
+    ) {
+        var booking = getBooking(bookingId);
+
+        if (booking.getStatus() != BookingStatus.HOLD) {
+            throw new IllegalStateException("Booking status is not 'HOLD'");
+        }
+
+        if (!booking.getExpiresAt().isAfter(LocalDateTime.now())) {
+            throw new IllegalStateException("Booking is expired");
+        }
+
+        List<BookingSeat> seats =
+                bookingSeatRepository.findAllByBooking_Id(bookingId);
+
+        if (seats.isEmpty()) {
+            throw new IllegalStateException("Booking has no seats!");
+        }
+
+        BigDecimal totalPrice = seats.stream()
+                .map(BookingSeat::getPriceAtBooking)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new BookingPaymentData(
+                booking.getId(),
+                booking.getStatus(),
+                booking.getExpiresAt(),
+                totalPrice
+        );
+
+    }
+
+
     private Booking getBooking(UUID bookingId) {
         return bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new EntityNotFoundException(
@@ -198,7 +231,6 @@ public class BookingPersistenceService {
                 totalPrice
         );
     }
-
 
 
 }

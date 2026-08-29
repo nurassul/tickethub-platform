@@ -1,12 +1,17 @@
 package grpctransport
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"log"
 	paymentv1 "payment-service/gen/payment/v1"
 	"payment-service/internal/domain"
+	"time"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -72,4 +77,34 @@ func toPaymentResponse(
 	}
 
 	return response
+}
+
+func GinStyleLogger() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		startTime := time.Now()
+
+		resp, err := handler(ctx, req)
+
+		duration := time.Since(startTime)
+
+		clientIP := "unknown"
+		if p, ok := peer.FromContext(ctx); ok {
+			clientIP = p.Addr.String()
+		}
+
+		st, _ := status.FromError(err)
+		statusCode := st.Code().String()
+
+		timeStr := startTime.Format("2006/01/02 - 15:04:05")
+
+		fmt.Printf("[GRPC] %s | %-14s | %12v | %15s | %s\n",
+			timeStr,
+			statusCode,
+			duration,
+			clientIP,
+			info.FullMethod,
+		)
+
+		return resp, err
+	}
 }

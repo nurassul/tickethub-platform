@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package payment.v1;
 
+option java_multiple_files = true;
+option java_package = "dev.project.contracts.payment.v1";
+option java_outer_classname = "PaymentProto";
+
 option go_package = "payment-service/gen/payment/v1;paymentv1";
 
 service PaymentService {

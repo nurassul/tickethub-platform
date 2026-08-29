@@ -4,6 +4,8 @@ package dev.project.booking.api.controllers;
 import dev.project.booking.api.services.BookingService;
 import dev.project.booking.dto.BookingResponse;
 import dev.project.booking.dto.CreateBookingRequest;
+import dev.project.booking.dto.PaymentResponse;
+import dev.project.booking.dto.PaymentStartResponse;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.utils.BookingMapper;
 import jakarta.validation.Valid;
@@ -40,6 +42,25 @@ public class BookingController {
         return ResponseEntity.ok(
                 bookingService.getBooking(bookingId)
         );
+    }
+
+
+    @PostMapping("/{bookingId}/payment")
+    public ResponseEntity<PaymentStartResponse> startPayment(@PathVariable UUID bookingId) {
+        var response = bookingService.startPayment(bookingId);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
+    }
+
+    @GetMapping("/{paymentId}/payment")
+    public ResponseEntity<PaymentResponse> getPayment(@PathVariable UUID paymentId) {
+        var response = bookingService.getPayment(paymentId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(response);
     }
 
     @PostMapping("/{bookingId}/cancel")

@@ -302,7 +302,8 @@ const file_payment_v1_payment_proto_rawDesc = "" +
 	"\x0ePaymentService\x12N\n" +
 	"\rCreatePayment\x12 .payment.v1.CreatePaymentRequest\x1a\x1b.payment.v1.PaymentResponse\x12H\n" +
 	"\n" +
-	"GetPayment\x12\x1d.payment.v1.GetPaymentRequest\x1a\x1b.payment.v1.PaymentResponseB*Z(payment-service/gen/payment/v1;paymentv1b\x06proto3"
+	"GetPayment\x12\x1d.payment.v1.GetPaymentRequest\x1a\x1b.payment.v1.PaymentResponseB\\\n" +
+	" dev.project.contracts.payment.v1B\fPaymentProtoP\x01Z(payment-service/gen/payment/v1;paymentv1b\x06proto3"
 
 var (
 	file_payment_v1_payment_proto_rawDescOnce sync.Once

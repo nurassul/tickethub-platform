@@ -1,0 +1,18 @@
+{
+  "eventId": "e6fc7a46-36b9-4c3e-90eb-f1eb8c8cafba",
+  "eventType": "payment.succeeded",
+  "eventVersion": 1,
+  "occurredAt": "2026-11-24T18:00:00Z",
+  "producer": "payment-service",
+  "aggregateType": "payment",
+  "aggregateId": "21237f46-33b9-4c45-91eb-fd58c8cdfbaa",
+  "correlationId": "e632f46a-3319-4233-90eb-f1eb8c834fba",
+  "payload": {
+    "paymentId": "21237f46-33b9-4c45-91eb-fd58c8cdfbaa",
+    "bookingId": "e632f46a-3319-4233-90eb-f1eb8c834fba",
+    "amountMinor": 123000,
+    "currency": "KZT",
+    "status": "SUCCEEDED",
+    "paidAt": "2026-11-24T18:00:00Z"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "eventId": "b2d6c3a4-8f2e-4b41-9c65-4a3f0b8d9e12",
+  "eventType": "payment.failed",
+  "eventVersion": 1,
+  "occurredAt": "2026-11-24T18:00:00Z",
+  "producer": "payment-service",
+  "aggregateType": "payment",
+  "aggregateId": "21237f46-33b9-4c45-91eb-fd58c8cdfbaa",
+  "correlationId": "e632f46a-3319-4233-90eb-f1eb8c834fba",
+  "payload": {
+    "paymentId": "21237f46-33b9-4c45-91eb-fd58c8cdfbaa",
+    "bookingId": "e632f46a-3319-4233-90eb-f1eb8c834fba",
+    "amountMinor": 123000,
+    "currency": "KZT",
+    "status": "FAILED",
+    "failureReason": "PAYMENT_DECLINED"
+  }
+}

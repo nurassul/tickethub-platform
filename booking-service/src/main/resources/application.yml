@@ -10,6 +10,19 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:29092}
+    consumer:
+      group-id: booking-payment-events-v1
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+
+
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -26,3 +39,14 @@ spring:
 clients:
   event-service:
     url: ${EVENT_SERVICE_URL:http://event-api:8084}
+
+  payment:
+    grpc:
+      host: ${PAYMENT_GRPC_HOST:localhost}
+      port: ${PAYMENT_GRPC_PORT:9090}
+      deadline-seconds: ${PAYMENT_GRPC_DEADLINE_SECONDS:3}
+
+app:
+  kafka:
+    topics:
+      payment-events: ${KAFKA_PAYMENT_EVENTS_TOPIC:tickethub.payment.events.v1}
