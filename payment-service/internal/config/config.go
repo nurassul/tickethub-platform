@@ -3,10 +3,12 @@ package config
 import "os"
 
 type Config struct {
-	DatabaseURL     string
-	HTTPPort        string
-	MockCheckoutURL string
-	GRPCPort        string
+	DatabaseURL             string
+	HTTPPort                string
+	MockCheckoutURL         string
+	GRPCPort                string
+	KafkaBrokers            string
+	KafkaPaymentEventsTopic string
 }
 
 func Load() Config {
@@ -30,10 +32,22 @@ func Load() Config {
 		grpcPort = "9090"
 	}
 
+	kafkaBrokers := os.Getenv("KAFKA_BROKERS")
+	if kafkaBrokers == "" {
+		kafkaBrokers = "localhost:9092"
+	}
+
+	kafkaPaymentEventsTopic := os.Getenv("KAFKA_PAYMENT_EVENTS_TOPIC")
+	if kafkaPaymentEventsTopic == "" {
+		kafkaPaymentEventsTopic = "tickethub.payment.events.v1"
+	}
+
 	return Config{
-		HTTPPort:        port,
-		DatabaseURL:     db,
-		GRPCPort:        grpcPort,
-		MockCheckoutURL: mockUrl,
+		HTTPPort:                port,
+		DatabaseURL:             db,
+		GRPCPort:                grpcPort,
+		MockCheckoutURL:         mockUrl,
+		KafkaBrokers:            kafkaBrokers,
+		KafkaPaymentEventsTopic: kafkaPaymentEventsTopic,
 	}
 }

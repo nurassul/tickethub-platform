@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"payment-service/internal/domain"
+	"payment-service/internal/kafka"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,7 +35,25 @@ func (s *PaymentService) MarkSucceeded(
 		return nil, domain.ErrBookingExpired
 	}
 
-	payment, err := s.paymentRepository.MarkSucceeded(ctx, paymentID)
+	paymentForEvent := *paymentCheck
+	paymentForEvent.Status = domain.PaymentSucceeded
+	paymentForEvent.PaidAt = &now
+
+	outboxEvent, err := buildOutboxEvent(
+		&paymentForEvent,
+		kafka.PaymentSucceededEventType,
+		s.paymentEventsTopic,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("build outbox event: %w", err)
+	}
+
+	payment, err := s.paymentRepository.MarkSucceededAndSaveOutbox(
+		ctx,
+		paymentID,
+		now,
+		outboxEvent,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("mark succeeded payment: %w", err)
 	}

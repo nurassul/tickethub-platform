@@ -134,11 +134,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://${DB_USERNAME}:${DB_PASSWORD}@db:5432/payment_db?sslmode=disable
       HTTP_PORT: 8085
       GRPC_PORT: 9090
       MOCK_CHECKOUT_URL: http://localhost:8085/api/v1/mock/payments
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_PAYMENT_EVENTS_TOPIC: tickethub.payment.events.v1
     ports:
       - "8085:8085"
       - "9090:9090"

@@ -128,7 +128,7 @@ public class BookingPersistenceService {
 
         if (booking.getStatus() != BookingStatus.HOLD) {
             throw new IllegalStateException(
-                    "Confirmed booking cannot be cancelled"
+                    "Booking status is not 'HOLD'"
             );
         }
 
@@ -154,6 +154,39 @@ public class BookingPersistenceService {
             reservation.setStatus(SeatReservationStatus.CONFIRMED);
             reservation.setExpiresAt(null);
         });
+
+        return new BookingData(
+                booking.getId(),
+                booking.getEventId(),
+                seats.stream().map(BookingSeat::getSeatId).toList()
+        );
+    }
+
+    @Transactional
+    public BookingData failPayment(UUID bookingId) {
+        Booking booking = getBooking(bookingId);
+
+        if (booking.getStatus() != BookingStatus.HOLD) {
+            throw new IllegalStateException(
+                    "Booking status is not 'HOLD'"
+            );
+        }
+
+        List<BookingSeat> seats =
+                bookingSeatRepository.findAllByBooking_Id(bookingId);
+
+        List<SeatReservation> reservations =
+                seatReservationRepository.findAllByBooking_Id(bookingId);
+
+        if (reservations.size() != seats.size()) {
+            throw new IllegalStateException(
+                    "Booking reservations are inconsistent"
+            );
+        }
+
+        booking.setStatus(BookingStatus.PAYMENT_FAILED);
+
+        seatReservationRepository.deleteAllByBooking_Id(bookingId);
 
         return new BookingData(
                 booking.getId(),
@@ -196,6 +229,8 @@ public class BookingPersistenceService {
         );
 
     }
+
+
 
 
     private Booking getBooking(UUID bookingId) {

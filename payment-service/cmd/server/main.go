@@ -7,6 +7,8 @@ import (
 	"log"
 	"net"
 	paymentv1 "payment-service/gen/payment/v1"
+	"payment-service/internal/kafka"
+	"payment-service/internal/outbox"
 	grpctransport "payment-service/internal/transport/grpc"
 	"payment-service/migrations"
 	"time"
@@ -32,6 +34,15 @@ func main() {
 
 	cfg := config.Load()
 
+	producer, err := kafka.NewProducer(
+		cfg.KafkaBrokers,
+		cfg.KafkaPaymentEventsTopic,
+	)
+	if err != nil {
+		log.Fatalf("failed to create kafka producer: %v", err)
+	}
+	defer producer.Close()
+
 	migrationDB, err := sql.Open("pgx", cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("failed to open database for migrations: %v", err)
@@ -56,7 +67,30 @@ func main() {
 	defer pool.Close()
 
 	paymentRepository := repository.NewPaymentRepository(pool)
-	paymentService := service.NewPaymentService(paymentRepository, cfg.MockCheckoutURL)
+	outboxRepository := repository.NewOutboxRepository(pool)
+	outboxRelay := outbox.NewRelay(
+		outboxRepository,
+		producer,
+		100,
+	)
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			if err := outboxRelay.RunOnce(context.Background()); err != nil {
+				log.Printf("outbox relay failed: %v", err)
+			}
+
+			<-ticker.C
+		}
+	}()
+
+	paymentService := service.NewPaymentService(
+		paymentRepository,
+		cfg.MockCheckoutURL,
+		cfg.KafkaPaymentEventsTopic,
+	)
 	paymentHTTPHandler := httptransport.NewPaymentHTTPHandler(paymentService)
 	paymentGRPCHandler := grpctransport.NewPaymentGRPCHandler(paymentService)
 

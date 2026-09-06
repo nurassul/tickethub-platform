@@ -23,6 +23,7 @@ public class PaymentEventsListener {
 
 
     private final ObjectMapper mapper;
+    private final PaymentEventHandler paymentEventHandler;
 
 
     @KafkaListener(topics = "${app.kafka.topics.payment-events}")
@@ -34,8 +35,9 @@ public class PaymentEventsListener {
         );
 
         validate(event);
+        paymentEventHandler.handleEvent(event);
 
-        log.info(
+        log.debug(
                 "Payment event parsed: id={}, type={}, bookingId={}, status={}",
                 event.eventId(),
                 event.eventType(),
@@ -71,7 +73,7 @@ public class PaymentEventsListener {
         }
 
         if (FAILED_TYPE.equals(paymentEvent.eventType())
-                && (!("FAILED".equals(paymentEvent.payload().status())) || paymentEvent.payload().failureReason().isBlank())
+                && (!("FAILED".equals(paymentEvent.payload().status())) || (paymentEvent.payload().failureReason() == null|| paymentEvent.payload().failureReason().isBlank()))
         ) {
             throw new IllegalArgumentException("payment.failed must have FAILED status");
         }
