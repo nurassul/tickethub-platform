@@ -53,3 +53,8 @@ app:
   kafka:
     topics:
       payment-events: ${KAFKA_PAYMENT_EVENTS_TOPIC:tickethub.payment.events.v1}
+      booking-events: ${KAFKA_BOOKING_EVENTS_TOPIC:tickethub.booking.events.v1}
+  outbox:
+    relay:
+      fixed-delay-ms: ${OUTBOX_RELAY_FIXED_DELAY_MS:2000}
+      batch-size: ${OUTBOX_RELAY_BATCH_SIZE:100}

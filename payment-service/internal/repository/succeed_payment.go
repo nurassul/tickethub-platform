@@ -65,7 +65,7 @@ func (r *PaymentRepository) MarkSucceededAndSaveOutbox(
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit succeeded payment and outbox: %w", err)
 	}
-	
+
 	return payment, nil
 }
 

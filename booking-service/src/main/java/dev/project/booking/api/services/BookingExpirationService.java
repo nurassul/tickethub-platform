@@ -1,6 +1,7 @@
 package dev.project.booking.api.services;
 
 import dev.project.booking.dto.BookingData;
+import dev.project.booking.integration.kafka.BookingOutboxService;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.repository.entity.BookingSeat;
 import dev.project.booking.repository.entity.enums.BookingStatus;
@@ -24,6 +25,7 @@ public class BookingExpirationService {
     private final BookingRepository bookingRepository;
     private final BookingSeatRepository bookingSeatRepository;
     private final SeatReservationRepository seatReservationRepository;
+    private final BookingOutboxService bookingOutboxService;
 
     @Transactional
     public List<BookingData> expireBookings() {
@@ -47,6 +49,8 @@ public class BookingExpirationService {
             seatReservationRepository.deleteAllByBooking_Id(
                     booking.getId()
             );
+
+            bookingOutboxService.saveBookingExpired(booking);
 
             result.add(new BookingData(
                     booking.getId(),

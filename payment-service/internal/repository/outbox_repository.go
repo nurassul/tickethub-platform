@@ -27,6 +27,7 @@ func (r *OutboxRepository) FindUnpublished(
 	SELECT id, topic, message_key, event_type, payload
 	FROM outbox_events
 	WHERE published_at IS NULL
+		AND next_attempt_at <= NOW()
 	ORDER BY created_at ASC
 	LIMIT $1
 	`
@@ -92,7 +93,11 @@ func (r *OutboxRepository) MarkAttemptFailed(
 	query := `
 	UPDATE outbox_events
 	SET attempts = attempts + 1,
-	    last_error = $2
+	    last_error = $2,
+	    next_attempt_at = NOW() + LEAST(
+    	INTERVAL '5 minutes',
+    	INTERVAL '2 seconds' * POWER(2::double precision, attempts)
+),
 	WHERE id = $1
 		AND published_at IS NULL
 	`
