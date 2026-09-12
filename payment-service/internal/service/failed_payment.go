@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"payment-service/internal/domain"
+	"payment-service/internal/kafka"
 	"strings"
 
 	"github.com/google/uuid"
@@ -35,7 +36,26 @@ func (s *PaymentService) MarkFailed(
 		return nil, domain.ErrInvalidPaymentStatus
 	}
 
-	payment, err := s.paymentRepository.MarkFailed(ctx, paymentID, reasonCorrect)
+	paymentForEvent := *paymentCheck
+	paymentForEvent.Status = domain.PaymentFailed
+	paymentForEvent.FailureReason = &reasonCorrect
+	paymentForEvent.PaidAt = nil
+
+	outboxEvent, err := buildOutboxEvent(
+		&paymentForEvent,
+		kafka.PaymentFailedEventType,
+		s.paymentEventsTopic,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("build outbox event: %w", err)
+	}
+
+	payment, err := s.paymentRepository.MarkFailedAndSaveOutbox(
+		ctx,
+		paymentID,
+		reasonCorrect,
+		outboxEvent,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("mark failed payment: %w", err)
 	}

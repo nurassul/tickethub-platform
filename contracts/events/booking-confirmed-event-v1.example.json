@@ -1,0 +1,18 @@
+{
+  "eventId": "UUID Kafka-сообщения",
+  "eventType": "booking.confirmed",
+  "eventVersion": 1,
+  "occurredAt": "UTC-время подтверждения",
+  "producer": "booking-service",
+  "aggregateType": "booking",
+  "aggregateId": "UUID брони",
+  "correlationId": "UUID брони",
+  "payload": {
+    "bookingId": "UUID брони",
+    "eventId": "UUID мероприятия",
+    "seatIds": [
+      "UUID места 1",
+      "UUID места 2"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "eventId": "новый UUID сообщения",
+  "eventType": "booking.expired",
+  "eventVersion": 1,
+  "occurredAt": "время истечения",
+  "producer": "booking-service",
+  "aggregateType": "booking",
+  "aggregateId": "UUID брони",
+  "correlationId": "тот же UUID брони",
+  "payload": {
+    "bookingId": "UUID брони",
+    "expiredAt": "время истечения"
+  }
+}
