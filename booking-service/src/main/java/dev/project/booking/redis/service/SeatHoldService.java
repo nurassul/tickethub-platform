@@ -2,7 +2,6 @@ package dev.project.booking.redis.service;
 
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -38,6 +37,20 @@ public class SeatHoldService {
 
                 for i, key in ipairs(KEYS) do
                     if redis.call('get', key) == ARGV[1] then
+                        redis.call('del', key)
+                        released = released + 1
+                    end
+                end
+
+                return released
+                """, Long.class);
+
+    private static final DefaultRedisScript<Long> RELEASE_SOLD_SCRIPT =
+            new DefaultRedisScript<>("""
+                local released = 0
+
+                for i, key in ipairs(KEYS) do
+                    if redis.call('get', key) == 'SOLD:' .. ARGV[1] then
                         redis.call('del', key)
                         released = released + 1
                     end
@@ -94,6 +107,18 @@ public class SeatHoldService {
         redisTemplate.execute(
                 MARK_SOLD_SCRIPT,
                 buildKeys(eventId, seatIds),
+                bookingId.toString()
+        );
+    }
+
+    public void releaseSold(
+            UUID bookingId,
+            UUID eventId,
+            List<UUID> seatIds
+    ) {
+        redisTemplate.execute(
+                RELEASE_SOLD_SCRIPT,
+                buildKeys(eventId,seatIds),
                 bookingId.toString()
         );
     }

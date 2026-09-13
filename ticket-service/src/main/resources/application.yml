@@ -4,3 +4,40 @@ server:
 spring:
   application:
     name: ticket-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db:5432/ticket_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+  liquibase:
+    change-log: classpath:/db/changelog/db.changelog-master.yaml
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:29092}
+    consumer:
+      group-id: ticket-booking-events-v1
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    listener:
+      ack-mode: record
+
+
+app:
+  kafka:
+    topics:
+      booking-events:  ${KAFKA_BOOKING_EVENTS_TOPIC:tickethub.booking.events.v1}
+      ticket-events: ${KAFKA_TICKET_EVENTS_TOPIC:tickethub.ticket.events.v1}
+
+    outbox:
+      relay-delay-ms: ${OUTBOX_RELAY_DELAY_MS:1000}

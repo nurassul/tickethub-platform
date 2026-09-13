@@ -72,6 +72,8 @@ services:
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.payment.events.v1.dlt --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.booking.events.v1 --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.booking.events.v1.dlt --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.ticket.events.v1 --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.ticket.events.v1.dlt --partitions 1 --replication-factor 1
     networks:
       - app-network
 
@@ -96,6 +98,31 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/event_db
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+
+  ticket-api:
+    ports:
+      - "8083:8083"
+    build:
+      context: .
+      dockerfile: ticket-service/Dockerfile
+    container_name: ticket-api
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    networks:
+      - app-network
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/ticket_db
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_BOOKING_EVENTS_TOPIC: tickethub.booking.events.v1
+      KAFKA_TICKET_EVENTS_TOPIC: tickethub.ticket.events.v1
+      OUTBOX_RELAY_DELAY_MS: 1000
 
   booking-api:
     build:
@@ -126,6 +153,8 @@ services:
       KAFKA_BOOKING_EVENTS_TOPIC: tickethub.booking.events.v1
       OUTBOX_RELAY_FIXED_DELAY_MS: 2000
       OUTBOX_RELAY_BATCH_SIZE: 100
+      KAFKA_TICKET_EVENTS_TOPIC: tickethub.ticket.events.v1
+      KAFKA_TICKET_EVENTS_GROUP_ID: booking-ticket-events-v1
     ports:
       - "8081:8081"
     networks:

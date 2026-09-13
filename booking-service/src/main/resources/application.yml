@@ -54,6 +54,9 @@ app:
     topics:
       payment-events: ${KAFKA_PAYMENT_EVENTS_TOPIC:tickethub.payment.events.v1}
       booking-events: ${KAFKA_BOOKING_EVENTS_TOPIC:tickethub.booking.events.v1}
+      ticket-events: ${KAFKA_TICKET_EVENTS_TOPIC:tickethub.ticket.events.v1}
+    groups:
+      ticket-events: ${KAFKA_TICKET_EVENTS_GROUP_ID:booking-ticket-events-v1}
   outbox:
     relay:
       fixed-delay-ms: ${OUTBOX_RELAY_FIXED_DELAY_MS:2000}

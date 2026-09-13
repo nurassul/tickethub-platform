@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -227,6 +228,52 @@ public class BookingPersistenceService {
                 booking.getExpiresAt(),
                 totalPrice
         );
+
+    }
+
+
+    @Transactional
+    public void releaseSoldSeat(
+            UUID bookingId,
+            UUID eventId,
+            UUID seatId
+    ) {
+        var booking = getBooking(bookingId);
+
+        if (!(BookingStatus.CONFIRMED.equals(booking.getStatus()) || BookingStatus.PARTIALLY_CANCELLED.equals(booking.getStatus()))) {
+            throw new IllegalStateException("Booking status must be 'CONFIRMED' or 'PARTIALLY_CANCELLED'");
+        }
+
+        if (!Objects.equals(booking.getEventId(), eventId)) {
+            throw new IllegalStateException("'eventId' must be same");
+        }
+
+        var reservation = seatReservationRepository.findByBooking_IdAndSeatId(
+                bookingId,
+                seatId
+        ).orElseThrow(() -> new IllegalStateException("Confirmed seat reservation not found"));
+
+        if (!SeatReservationStatus.CONFIRMED.equals(reservation.getStatus())) {
+            throw new IllegalStateException(
+                    "SeatReservation status must be 'CONFIRMED'"
+            );
+        }
+
+        if (!Objects.equals(reservation.getEventId(), eventId)) {
+            throw new IllegalStateException("'eventId' must be same");
+        }
+
+        seatReservationRepository.delete(reservation);
+        seatReservationRepository.flush();
+
+        var remainingReservations =
+                seatReservationRepository.findAllByBooking_Id(bookingId);
+
+        if (remainingReservations.isEmpty()) {
+            booking.setStatus(BookingStatus.CANCELLED);
+        } else {
+            booking.setStatus(BookingStatus.PARTIALLY_CANCELLED);
+        }
 
     }
 
