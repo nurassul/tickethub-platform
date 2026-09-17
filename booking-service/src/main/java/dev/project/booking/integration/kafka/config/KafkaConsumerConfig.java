@@ -1,4 +1,4 @@
-package dev.project.booking.integration.kafka;
+package dev.project.booking.integration.kafka.config;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;

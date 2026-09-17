@@ -1,0 +1,45 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: booking-service
+              uri: ${BOOKING_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/bookings/**
+            - id: ticket-service
+              uri: ${TICKET_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/tickets/**
+            - id: event-service
+              uri: ${EVENT_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/v1/events/**
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/tickethub}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://keycloak:8080/realms/tickethub/protocol/openid-connect/certs}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${JAEGER_URL:http://jaeger:4318/v1/traces}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [traceId=%X{traceId}, spanId=%X{spanId}] - %msg%n"
+

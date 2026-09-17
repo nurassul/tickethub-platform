@@ -1,8 +1,10 @@
-package dev.project.booking.integration.kafka;
+package dev.project.booking.integration.kafka.service;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.project.booking.dto.BookingData;
+import dev.project.booking.integration.kafka.event.BookingConfirmedEvent;
 import dev.project.booking.integration.kafka.event.BookingExpiredEvent;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.repository.entity.OutboxEvent;
@@ -20,6 +22,7 @@ import java.util.UUID;
 public class BookingOutboxService {
 
     private static final String BOOKING_EXPIRED_TYPE = "booking.expired";
+    private static final String BOOKING_CONFIRMED_TYPE = "booking.confirmed";
 
 
     private final ObjectMapper objectMapper;
@@ -27,6 +30,47 @@ public class BookingOutboxService {
 
     @Value("${app.kafka.topics.booking-events}")
     private String bookingEventsTopic;
+
+    public void saveBookingConfirmed(BookingData data) {
+        Instant now = Instant.now();
+
+        BookingConfirmedEvent event = new BookingConfirmedEvent(
+                UUID.randomUUID(),
+                BOOKING_CONFIRMED_TYPE,
+                1,
+                now,
+                "booking-service",
+                "booking",
+                data.bookingId(),
+                data.bookingId(),
+                new BookingConfirmedEvent.Payload(
+                        data.bookingId(),
+                        data.eventId(),
+                        data.seatIds()
+                )
+        );
+
+        String payload;
+
+        try {
+            payload = objectMapper.writeValueAsString(event);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(
+                    "Failed to serialize booking.confirmed event",
+                    e
+            );
+        }
+
+        OutboxEvent outboxEvent = OutboxEvent.builder()
+                .id(event.eventId())
+                .topic(bookingEventsTopic)
+                .messageKey(data.bookingId().toString())
+                .eventType(event.eventType())
+                .payload(payload)
+                .build();
+
+        outboxEventRepository.save(outboxEvent);
+    }
 
 
     public void saveBookingExpired(Booking booking) {

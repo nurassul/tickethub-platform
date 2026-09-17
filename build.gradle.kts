@@ -19,7 +19,9 @@ subprojects {
 
     dependencies {
         // Spring Boot Web (REST API)
-        implementation("org.springframework.boot:spring-boot-starter-web")
+        if (project.name != "api-gateway") {
+            implementation("org.springframework.boot:spring-boot-starter-web")
+        }
 
         // Lombok (чтобы не писать геттеры/сеттеры)
         compileOnly("org.projectlombok:lombok")
@@ -28,7 +30,7 @@ subprojects {
         implementation("org.mapstruct:mapstruct:1.6.0")
         annotationProcessor("org.mapstruct:mapstruct-processor:1.6.0")
 
-        // JSON (pick one)
+        // JSON
         implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
         implementation("com.fasterxml.jackson.module:jackson-module-parameter-names:2.17.2")
 
@@ -41,6 +43,13 @@ subprojects {
         testImplementation(platform("org.junit:junit-bom:5.10.0"))
         testImplementation("org.junit.jupiter:junit-jupiter")
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+
+        // Observability
+        implementation("org.springframework.boot:spring-boot-starter-actuator")
+        implementation("io.micrometer:micrometer-registry-prometheus")
+        implementation("io.micrometer:micrometer-tracing-bridge-otel")
+        implementation("io.opentelemetry:opentelemetry-exporter-otlp")
     }
 
     tasks.withType<Test> {

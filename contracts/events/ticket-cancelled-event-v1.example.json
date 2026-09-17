@@ -1,0 +1,17 @@
+{
+  "eventId": "UUID нового Kafka-события",
+  "eventType": "ticket.cancelled",
+  "eventVersion": 1,
+  "occurredAt": "время отмены в UTC",
+  "producer": "ticket-service",
+  "aggregateType": "ticket",
+  "aggregateId": "UUID отменённого билета",
+  "correlationId": "UUID брони",
+  "payload": {
+    "ticketId": "UUID отменённого билета",
+    "bookingId": "UUID брони",
+    "eventId": "UUID мероприятия",
+    "seatId": "UUID освобождаемого места",
+    "cancelledAt": "время отмены в UTC"
+  }
+}

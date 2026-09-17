@@ -1,6 +1,7 @@
 package dev.project.booking.repository.entity;
 
 
+import dev.project.booking.repository.entity.enums.BookingSeatStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -45,4 +46,19 @@ public class BookingSeat {
             scale = 2
     )
     private BigDecimal priceAtBooking;
+
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private BookingSeatStatus status;
+
+
+    @PrePersist
+    public void onCreate() {
+        if (status == null) {
+            status = BookingSeatStatus.ACTIVE;
+        }
+    }
+
+
 }

@@ -1,0 +1,2 @@
+ALTER TABLE booking_seats
+    ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE';

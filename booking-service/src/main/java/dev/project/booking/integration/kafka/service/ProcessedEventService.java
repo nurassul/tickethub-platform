@@ -1,4 +1,4 @@
-package dev.project.booking.integration.kafka;
+package dev.project.booking.integration.kafka.service;
 
 
 import lombok.RequiredArgsConstructor;
@@ -12,16 +12,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProcessedEventService {
 
-    private static final String CONSUMER_NAME = "booking-payment-events-v1";
-
     private final JdbcTemplate jdbcTemplate;
 
 
-    public boolean tryRegister(UUID eventId) {
+    public boolean tryRegister(String consumerName, UUID eventId) {
         String query = "INSERT INTO processed_events (consumer_name, event_id) VALUES (?, ?) " +
                 "ON CONFLICT (consumer_name, event_id) DO NOTHING";
 
-        int res = jdbcTemplate.update(query, CONSUMER_NAME, eventId);
+        int res = jdbcTemplate.update(query, consumerName, eventId);
 
         return res == 1;
     }

@@ -1,4 +1,4 @@
-package dev.project.booking.integration.kafka;
+package dev.project.booking.integration.kafka.relay;
 
 
 import dev.project.booking.repository.entity.OutboxEvent;

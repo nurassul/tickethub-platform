@@ -6,6 +6,7 @@ import dev.project.booking.dto.feign.ValidatedSeatsResponse;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.repository.entity.BookingSeat;
 import dev.project.booking.repository.entity.SeatReservation;
+import dev.project.booking.repository.entity.enums.BookingSeatStatus;
 import dev.project.booking.repository.entity.enums.BookingStatus;
 import dev.project.booking.repository.entity.enums.SeatReservationStatus;
 import dev.project.booking.repository.postgresql.BookingRepository;
@@ -21,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -231,6 +233,63 @@ public class BookingPersistenceService {
     }
 
 
+    @Transactional
+    public void releaseSoldSeat(
+            UUID bookingId,
+            UUID eventId,
+            UUID seatId
+    ) {
+        var booking = getBooking(bookingId);
+
+        if (!(BookingStatus.CONFIRMED.equals(booking.getStatus()) || BookingStatus.PARTIALLY_CANCELLED.equals(booking.getStatus()))) {
+            throw new IllegalStateException("Booking status must be 'CONFIRMED' or 'PARTIALLY_CANCELLED'");
+        }
+
+        if (!Objects.equals(booking.getEventId(), eventId)) {
+            throw new IllegalStateException("'eventId' must be same");
+        }
+
+        var reservation = seatReservationRepository.findByBooking_IdAndSeatId(
+                bookingId,
+                seatId
+        ).orElseThrow(() -> new IllegalStateException("Confirmed seat reservation not found"));
+
+        if (!SeatReservationStatus.CONFIRMED.equals(reservation.getStatus())) {
+            throw new IllegalStateException(
+                    "SeatReservation status must be 'CONFIRMED'"
+            );
+        }
+
+        if (!Objects.equals(reservation.getEventId(), eventId)) {
+            throw new IllegalStateException("'eventId' must be same");
+        }
+
+        seatReservationRepository.delete(reservation);
+        seatReservationRepository.flush();
+
+        var remainingReservations =
+                seatReservationRepository.findAllByBooking_Id(bookingId);
+
+        if (remainingReservations.isEmpty()) {
+            booking.setStatus(BookingStatus.CANCELLED);
+        } else {
+            booking.setStatus(BookingStatus.PARTIALLY_CANCELLED);
+        }
+
+        var bookingSeat = bookingSeatRepository.findByBooking_IdAndSeatId(bookingId, seatId)
+                .orElseThrow(() -> new EntityNotFoundException("Booking seat not found with seatId= " + seatId));
+
+        if (bookingSeat.getStatus() != BookingSeatStatus.ACTIVE) {
+            throw new IllegalStateException(
+                    "Booking seat status must be 'ACTIVE'"
+            );
+        }
+
+        bookingSeat.setStatus(BookingSeatStatus.CANCELLED);
+
+    }
+
+
 
 
     private Booking getBooking(UUID bookingId) {
@@ -247,7 +306,8 @@ public class BookingPersistenceService {
         List<BookingSeatResponse> seatResponses = seats.stream()
                 .map(seat -> new BookingSeatResponse(
                         seat.getSeatId(),
-                        seat.getPriceAtBooking()
+                        seat.getPriceAtBooking(),
+                        seat.getStatus()
                 ))
                 .toList();
 
