@@ -19,6 +19,9 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 	"payment-service/internal/config"
 	"payment-service/internal/database"
@@ -48,6 +51,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
+
+	tp, err := config.InitTracer("payment-service")
+	if err != nil {
+		log.Fatalf("failed to init tracer: %v", err)
+	}
+	defer tp.Shutdown(context.Background())
 
 	producer, err := kafka.NewProducer(
 		cfg.KafkaBrokers,
@@ -87,6 +96,7 @@ func main() {
 	log.Println("Migrations applied successfully")
 
 	r := gin.Default()
+	r.Use(otelgin.Middleware("payment-service"))
 	pool, err := database.NewPostgresPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("failed to init postgres connection pool: %v", err)
@@ -156,6 +166,7 @@ func main() {
 	paymentHTTPHandler := httptransport.NewPaymentHTTPHandler(paymentService)
 	paymentGRPCHandler := grpctransport.NewPaymentGRPCHandler(paymentService)
 
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	payments := r.Group("/api/v1/mock/payments")
 	payments.GET("/:paymentId", paymentHTTPHandler.GetByID)
 	payments.POST("/:paymentId/succeed", paymentHTTPHandler.MarkSucceeded)
@@ -166,7 +177,9 @@ func main() {
 		panic(fmt.Sprintf("failed to listen: %v", err))
 	}
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(grpctransport.GinStyleLogger()))
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		grpc.UnaryInterceptor(grpctransport.GinStyleLogger()),
+	)
 	paymentv1.RegisterPaymentServiceServer(grpcServer, paymentGRPCHandler)
 	reflection.Register(grpcServer)
 	go func() {

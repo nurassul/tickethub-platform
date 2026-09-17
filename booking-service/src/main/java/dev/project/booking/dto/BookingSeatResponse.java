@@ -1,10 +1,13 @@
 package dev.project.booking.dto;
 
+import dev.project.booking.repository.entity.enums.BookingSeatStatus;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
 public record BookingSeatResponse(
         UUID seatId,
-        BigDecimal price
+        BigDecimal price,
+        BookingSeatStatus status
 ) {
 }

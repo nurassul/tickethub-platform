@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'tickethub-java-services'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['booking-api:8081', 'ticket-api:8083', 'event-api:8084', 'api-gateway:8080']
+
+  - job_name: 'tickethub-go-services'
+    metrics_path: '/metrics'
+    static_configs:
+        - targets: [ 'payment-api:8085' ]

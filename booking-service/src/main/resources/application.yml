@@ -49,6 +49,18 @@ clients:
       port: ${PAYMENT_GRPC_PORT:9090}
       deadline-seconds: ${PAYMENT_GRPC_DEADLINE_SECONDS:3}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${JAEGER_URL:http://jaeger:4318/v1/traces}
+
 app:
   kafka:
     topics:
@@ -61,3 +73,7 @@ app:
     relay:
       fixed-delay-ms: ${OUTBOX_RELAY_FIXED_DELAY_MS:2000}
       batch-size: ${OUTBOX_RELAY_BATCH_SIZE:100}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [traceId=%X{traceId}, spanId=%X{spanId}] - %msg%n"

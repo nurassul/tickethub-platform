@@ -16,7 +16,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,7 +25,7 @@ services:
     image: redis:7-alpine
     container_name: redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks:
       - app-network
 
@@ -35,7 +35,7 @@ services:
     hostname: kafka
     restart: unless-stopped
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
     networks:
       - app-network
     volumes:
@@ -77,12 +77,29 @@ services:
     networks:
       - app-network
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    container_name: keycloak
+    command: start-dev
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/keycloak_db
+      KC_DB_USERNAME: ${DB_USERNAME}
+      KC_DB_PASSWORD: ${DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    ports:
+      - "127.0.0.1:8180:8080"
+    networks:
+      - app-network
+
 
 
   # Microservices
   event-api:
-    ports:
-      - "8084:8084"
     build:
       context: .
       dockerfile: event-service/Dockerfile
@@ -98,10 +115,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/event_db
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JAEGER_URL: http://jaeger:4318/v1/traces
 
   ticket-api:
-    ports:
-      - "8083:8083"
     build:
       context: .
       dockerfile: ticket-service/Dockerfile
@@ -123,6 +139,7 @@ services:
       KAFKA_BOOKING_EVENTS_TOPIC: tickethub.booking.events.v1
       KAFKA_TICKET_EVENTS_TOPIC: tickethub.ticket.events.v1
       OUTBOX_RELAY_DELAY_MS: 1000
+      JAEGER_URL: http://jaeger:4318/v1/traces
 
   booking-api:
     build:
@@ -155,8 +172,33 @@ services:
       OUTBOX_RELAY_BATCH_SIZE: 100
       KAFKA_TICKET_EVENTS_TOPIC: tickethub.ticket.events.v1
       KAFKA_TICKET_EVENTS_GROUP_ID: booking-ticket-events-v1
+      JAEGER_URL: http://jaeger:4318/v1/traces
+    networks:
+      - app-network
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway
+    depends_on:
+      booking-api:
+        condition: service_started
+      ticket-api:
+        condition: service_started
+      event-api:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    environment:
+      BOOKING_SERVICE_URL: http://booking-api:8081
+      TICKET_SERVICE_URL: http://ticket-api:8083
+      EVENT_SERVICE_URL: http://event-api:8084
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/tickethub
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/tickethub/protocol/openid-connect/certs
+      JAEGER_URL: http://jaeger:4318/v1/traces
     ports:
-      - "8081:8081"
+      - "8080:8080"
     networks:
       - app-network
 
@@ -187,6 +229,60 @@ services:
       - "9090:9090"
     networks:
       - app-network
+
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9091:9090"
+    networks:
+      - app-network
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - app-network
+    depends_on:
+      - prometheus
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - app-network
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - app-network
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail/config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - app-network
+    depends_on:
+      - loki
 
 networks:
   app-network:

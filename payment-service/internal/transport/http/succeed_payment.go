@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (h *PaymentHTTPHandler) MarkSucceeded(
@@ -23,6 +24,10 @@ func (h *PaymentHTTPHandler) MarkSucceeded(
 			})
 		return
 	}
+
+	span := trace.SpanFromContext(c.Request.Context())
+	traceID := span.SpanContext().TraceID().String()
+	log.Printf("[traceId=%s] Starting processing a successful payment for paymentId: %s", traceID, paymentID)
 
 	payment, err := h.paymentService.MarkSucceeded(c.Request.Context(), paymentID)
 	if err != nil {

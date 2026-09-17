@@ -6,6 +6,7 @@ import dev.project.booking.dto.feign.ValidatedSeatsResponse;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.repository.entity.BookingSeat;
 import dev.project.booking.repository.entity.SeatReservation;
+import dev.project.booking.repository.entity.enums.BookingSeatStatus;
 import dev.project.booking.repository.entity.enums.BookingStatus;
 import dev.project.booking.repository.entity.enums.SeatReservationStatus;
 import dev.project.booking.repository.postgresql.BookingRepository;
@@ -275,6 +276,17 @@ public class BookingPersistenceService {
             booking.setStatus(BookingStatus.PARTIALLY_CANCELLED);
         }
 
+        var bookingSeat = bookingSeatRepository.findByBooking_IdAndSeatId(bookingId, seatId)
+                .orElseThrow(() -> new EntityNotFoundException("Booking seat not found with seatId= " + seatId));
+
+        if (bookingSeat.getStatus() != BookingSeatStatus.ACTIVE) {
+            throw new IllegalStateException(
+                    "Booking seat status must be 'ACTIVE'"
+            );
+        }
+
+        bookingSeat.setStatus(BookingSeatStatus.CANCELLED);
+
     }
 
 
@@ -294,7 +306,8 @@ public class BookingPersistenceService {
         List<BookingSeatResponse> seatResponses = seats.stream()
                 .map(seat -> new BookingSeatResponse(
                         seat.getSeatId(),
-                        seat.getPriceAtBooking()
+                        seat.getPriceAtBooking(),
+                        seat.getStatus()
                 ))
                 .toList();
 

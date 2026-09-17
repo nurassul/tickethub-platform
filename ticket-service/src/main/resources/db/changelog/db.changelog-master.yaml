@@ -4,4 +4,4 @@ databaseChangeLog:
   - include:
       file: db/changelog/changeset/002-create-processed-events-table.sql
   - include:
-      file: db/changelog/changeset/003-create-outbox-events-table.sql
+      file: db/changelog/changeset/003-create-outbox-events.sql
