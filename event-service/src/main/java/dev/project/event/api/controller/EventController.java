@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -111,6 +112,14 @@ public class EventController {
             ) Pageable pageable
     ) {
         return eventService.getEvents(EventStatus.PUBLISHED, pageable);
+    }
+
+
+    @GetMapping("/search")
+    public ResponseEntity<List<EventResponse>> searchEvents(
+        @RequestParam("query") String query
+    ) {
+        return ResponseEntity.ok(eventService.searchEvents(query));
     }
 
 }

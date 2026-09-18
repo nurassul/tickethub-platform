@@ -1,4 +1,4 @@
-package dev.project.event.repository;
+package dev.project.event.repository.postgresql;
 
 import dev.project.event.repository.entity.Event;
 import dev.project.event.repository.entity.enums.EventStatus;
@@ -14,5 +14,7 @@ import java.util.UUID;
 public interface EventRepository extends JpaRepository<Event, UUID> {
 
     Page<Event> findAllByStatus(EventStatus status, Pageable pageable);
+
+
 
 }

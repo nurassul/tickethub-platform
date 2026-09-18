@@ -24,8 +24,6 @@ spring:
     listener:
       ack-mode: record
 
-
-
   jpa:
     hibernate:
       ddl-auto: validate

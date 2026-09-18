@@ -74,6 +74,7 @@ services:
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.booking.events.v1.dlt --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.ticket.events.v1 --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.ticket.events.v1.dlt --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.events.changes.v1 --partitions 1 --replication-factor 1
     networks:
       - app-network
 
@@ -109,13 +110,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      kafka:
+        condition: service_healthy
     networks:
       - app-network
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/event_db
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_EVENTS_TOPIC: tickethub.events.changes.v1
       JAEGER_URL: http://jaeger:4318/v1/traces
+      ELASTICSEARCH_URL: http://elasticsearch:9200
 
   ticket-api:
     build:
@@ -231,6 +237,7 @@ services:
       - app-network
 
 
+  # Observability
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -284,9 +291,36 @@ services:
     depends_on:
       - loki
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - app-network
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - app-network
+    depends_on:
+      - elasticsearch
+
 networks:
   app-network:
 
 volumes:
   db_data:
   kafka_data:
+  es_data:

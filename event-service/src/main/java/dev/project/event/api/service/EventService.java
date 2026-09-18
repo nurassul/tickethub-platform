@@ -8,6 +8,7 @@ import dev.project.event.repository.entity.enums.EventStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface EventService {
@@ -17,6 +18,7 @@ public interface EventService {
     EventResponse publishEvent(UUID eventID);
     EventResponse cancelEvent(UUID eventID);
     EventResponse findEventById(UUID eventID);
+    List<EventResponse> searchEvents(String keyword);
     Page<EventResponse> getEvents(EventStatus status, Pageable pageable);
 
     EventResponse updateEvent(UUID eventID, UpdateEventRequest request);
