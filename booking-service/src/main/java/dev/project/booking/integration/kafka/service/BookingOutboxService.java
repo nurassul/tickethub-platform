@@ -46,7 +46,8 @@ public class BookingOutboxService {
                 new BookingConfirmedEvent.Payload(
                         data.bookingId(),
                         data.eventId(),
-                        data.seatIds()
+                        data.seatIds(),
+                        data.customerEmail()
                 )
         );
 

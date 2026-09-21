@@ -1,4 +1,4 @@
-package dev.project.ticket.integration.kafka;
+package dev.project.ticket.integration.kafka.service;
 
 
 import lombok.RequiredArgsConstructor;

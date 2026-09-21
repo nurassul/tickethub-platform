@@ -1,8 +1,10 @@
 package dev.project.ticket.api.controller;
 
 
+import dev.project.ticket.api.service.TicketService;
 import dev.project.ticket.dto.TicketResponse;
 import dev.project.ticket.api.service.TicketQueryService;
+import dev.project.ticket.dto.TicketScanResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +20,7 @@ public class TicketController {
 
 
     private final TicketQueryService ticketQueryService;
+    private final TicketService ticketService;
 
 
     @GetMapping("/{bookingId}")
@@ -34,6 +37,16 @@ public class TicketController {
             @PathVariable UUID ticketId
     ) {
         var res = ticketQueryService.cancelTicket(ticketId);
+
+        return ResponseEntity.ok(res);
+    }
+
+    @PostMapping("/{ticketId}/scan")
+    public ResponseEntity<TicketScanResponse> scanTicket(
+            @PathVariable UUID ticketId
+    ) {
+
+        var res = ticketService.scanTicket(ticketId);
 
         return ResponseEntity.ok(res);
     }

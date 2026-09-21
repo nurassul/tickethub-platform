@@ -6,6 +6,7 @@ import java.util.UUID;
 public record BookingData(
         UUID bookingId,
         UUID eventId,
-        List<UUID> seatIds
+        List<UUID> seatIds,
+        String customerEmail
 ) {
 }

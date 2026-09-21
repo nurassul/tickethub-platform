@@ -18,6 +18,5 @@ RUN JAR_FILE=$(find event-service/build/libs \
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 COPY --from=build /app/app.jar /app/app.jar
-EXPOSE 8084
-ENV SERVER_PORT=8084
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+

@@ -1,4 +1,4 @@
-package dev.project.ticket.integration.kafka;
+package dev.project.ticket.integration.kafka.relay;
 
 
 import dev.project.ticket.repository.postgresql.OutboxEventRepository;
