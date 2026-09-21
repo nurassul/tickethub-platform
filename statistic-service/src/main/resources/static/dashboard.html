@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TicketHub Live Dashboard</title>
+    <style>
+        body { background-color: #1e1e2e; color: #cdd6f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 50px; }
+        h1 { margin-bottom: 5px; }
+        .container { display: flex; gap: 30px; margin-top: 30px; }
+        .card { background: #313244; padding: 30px; border-radius: 12px; width: 250px; text-align: center; box-shadow: 0 10px 15px rgba(0,0,0,0.3); }
+        .card h2 { margin: 0; font-size: 1.2rem; color: #a6adc8; text-transform: uppercase; letter-spacing: 1px; }
+        .card .number { font-size: 4.5rem; font-weight: bold; margin: 20px 0 0; color: #a6e3a1; transition: color 0.3s; }
+        .flash { color: #f9e2af !important; } /* Цвет моргания при новой покупке */
+        #status { font-weight: bold; color: #f38ba8; font-size: 1.1rem; }
+        .connected { color: #a6e3a1 !important; }
+    </style>
+</head>
+<body>
+<h1>🎟️ TicketHub Live Analytics</h1>
+<div id="status">🔴 Connecting to WebSocket...</div>
+
+<div class="container">
+    <div class="card">
+        <h2>Total Bookings</h2>
+        <div class="number" id="bookingsCount">0</div>
+    </div>
+    <div class="card">
+        <h2>Tickets Issued</h2>
+        <div class="number" id="ticketsCount">0</div>
+    </div>
+</div>
+
+<script>
+    const socket = new WebSocket('ws://localhost:8087/ws/metrics');
+
+    const statusEl = document.getElementById('status');
+    const bookingsEl = document.getElementById('bookingsCount');
+    const ticketsEl = document.getElementById('ticketsCount');
+
+    socket.onopen = () => {
+        statusEl.textContent = '🟢 Connected to Live Stream';
+        statusEl.className = 'connected';
+    };
+
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+
+        updateNumber(bookingsEl, data.totalBookings);
+        updateNumber(ticketsEl, data.totalTickets);
+    };
+
+    socket.onclose = () => {
+        statusEl.textContent = '🔴 Disconnected (Server down)';
+        statusEl.className = '';
+    };
+
+    function updateNumber(element, newValue) {
+        if (element.textContent != newValue) {
+            element.textContent = newValue;
+            element.classList.add('flash');
+            setTimeout(() => element.classList.remove('flash'), 300);
+        }
+    }
+</script>
+</body>
+</html>

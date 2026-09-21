@@ -1,10 +1,11 @@
-package dev.project.ticket.integration.kafka;
+package dev.project.ticket.integration.kafka.listener;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.project.ticket.integration.kafka.event.BookingConfirmedEvent;
+import dev.project.ticket.integration.kafka.handler.BookingEventHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -20,7 +21,7 @@ import java.util.Objects;
 public class BookingEventsListener {
 
     private final ObjectMapper objectMapper;
-    private final BookingConfirmedHandler bookingConfirmedHandler;
+    private final BookingEventHandler bookingEventHandler;
 
     private static final String CONFIRMED_TYPE = "booking.confirmed";
 
@@ -29,40 +30,27 @@ public class BookingEventsListener {
     public void listen(ConsumerRecord<String, String> record) throws JsonProcessingException {
 
         JsonNode root = objectMapper.readTree(record.value());
-
         String eventType = root.path("eventType").asText();
 
-        if (!CONFIRMED_TYPE.equals(eventType)) {
-            log.debug(
-                    "Booking event ignored: type={}, topic={}, offset={}",
-                    eventType,
-                    record.topic(),
-                    record.offset()
-            );
-            return;
+        switch (eventType) {
+            case CONFIRMED_TYPE -> {
+                var event = objectMapper.readValue(
+                        record.value(),
+                        BookingConfirmedEvent.class
+                );
+                validateConfirmedEvent(event);
+                bookingEventHandler.handleConfirmed(event);
+                log.info("booking.confirmed handled: bookingId={}", event.payload().bookingId());
+            }
+
+            default -> log.debug("Ignored booking event: type={}, offset={}", eventType, record.offset());
         }
 
-        BookingConfirmedEvent event = objectMapper.readValue(
-                record.value(),
-                BookingConfirmedEvent.class
-        );
-
-        validate(event);
-
-        bookingConfirmedHandler.handle(event);
-
-        log.info(
-                "Tickets handled for booking.confirmed: eventId={}, bookingId={}, eventId={}, seatIds={}",
-                event.eventId(),
-                event.payload().bookingId(),
-                event.payload().eventId(),
-                event.payload().seatIds()
-        );
 
     }
 
 
-    private void validate(BookingConfirmedEvent bookingConfirmedEvent) {
+    private void validateConfirmedEvent(BookingConfirmedEvent bookingConfirmedEvent) {
         if (bookingConfirmedEvent.eventVersion() != 1) {
             throw new IllegalStateException("'eventVersion' is not equal to 1");
         }

@@ -57,7 +57,8 @@ public class BookingExpirationService {
                     booking.getEventId(),
                     seats.stream()
                             .map(BookingSeat::getSeatId)
-                            .toList()
+                            .toList(),
+                    booking.getCustomerEmail()
             ));
         }
 

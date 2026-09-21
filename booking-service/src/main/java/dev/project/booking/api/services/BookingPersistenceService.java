@@ -119,7 +119,8 @@ public class BookingPersistenceService {
         return new BookingData(
                 booking.getId(),
                 booking.getEventId(),
-                seats.stream().map(BookingSeat::getSeatId).toList()
+                seats.stream().map(BookingSeat::getSeatId).toList(),
+                booking.getCustomerEmail()
         );
     }
 
@@ -160,7 +161,8 @@ public class BookingPersistenceService {
         return new BookingData(
                 booking.getId(),
                 booking.getEventId(),
-                seats.stream().map(BookingSeat::getSeatId).toList()
+                seats.stream().map(BookingSeat::getSeatId).toList(),
+                booking.getCustomerEmail()
         );
     }
 
@@ -193,7 +195,8 @@ public class BookingPersistenceService {
         return new BookingData(
                 booking.getId(),
                 booking.getEventId(),
-                seats.stream().map(BookingSeat::getSeatId).toList()
+                seats.stream().map(BookingSeat::getSeatId).toList(),
+                booking.getCustomerEmail()
         );
     }
 

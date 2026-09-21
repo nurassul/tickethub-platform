@@ -2,6 +2,7 @@ package dev.project.ticket.api.service;
 
 
 import dev.project.ticket.dto.TicketResponse;
+import dev.project.ticket.dto.TicketScanResponse;
 import dev.project.ticket.integration.TicketOutboxService;
 import dev.project.ticket.repository.entity.enums.TicketStatus;
 import dev.project.ticket.repository.postgresql.TicketRepository;
@@ -37,9 +38,6 @@ public class TicketQueryService {
             ticketOutboxService.saveTicketCancelled(ticket);
         }
 
-
-
-
         return new TicketResponse(
                 ticket.getId(),
                 ticket.getBookingId(),
@@ -74,6 +72,9 @@ public class TicketQueryService {
         return result;
 
     }
+
+
+
 
 
 }

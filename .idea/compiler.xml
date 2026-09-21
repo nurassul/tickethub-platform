@@ -9,8 +9,10 @@
           <entry name="$PROJECT_DIR$/../.gradle/caches/modules-2/files-2.1/org.mapstruct/mapstruct-processor/1.6.0/d48e787cbd31bfd8766cdcd255ca102e974309/mapstruct-processor-1.6.0.jar" />
         </processorPath>
         <module name="tickethub.booking-service.main" />
+        <module name="tickethub.statistic-service.main" />
         <module name="tickethub.ticket-service.main" />
         <module name="tickethub.api-gateway.main" />
+        <module name="tickethub.notification-service.main" />
         <module name="tickethub.event-service.main" />
       </profile>
     </annotationProcessing>
@@ -29,9 +31,15 @@
       <module name="tickethub.event-service.test" options="-parameters" />
       <module name="tickethub.gateway.main" options="-parameters" />
       <module name="tickethub.gateway.test" options="-parameters" />
+      <module name="tickethub.notification-service" options="-parameters" />
+      <module name="tickethub.notification-service.main" options="-parameters" />
+      <module name="tickethub.notification-service.test" options="-parameters" />
       <module name="tickethub.payment-service" options="-parameters" />
       <module name="tickethub.payment-service.main" options="-parameters" />
       <module name="tickethub.payment-service.test" options="-parameters" />
+      <module name="tickethub.statistic-service" options="-parameters" />
+      <module name="tickethub.statistic-service.main" options="-parameters" />
+      <module name="tickethub.statistic-service.test" options="-parameters" />
       <module name="tickethub.ticket-service" options="-parameters" />
       <module name="tickethub.ticket-service.main" options="-parameters" />
       <module name="tickethub.ticket-service.test" options="-parameters" />

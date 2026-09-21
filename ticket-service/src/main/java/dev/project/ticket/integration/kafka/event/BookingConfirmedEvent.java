@@ -18,6 +18,7 @@ public record BookingConfirmedEvent(
     public record Payload(
             UUID bookingId,
             UUID eventId,
-            List<UUID> seatIds
+            List<UUID> seatIds,
+            String customerEmail
     ){}
 }

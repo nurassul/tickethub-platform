@@ -12,6 +12,8 @@
             <option value="$PROJECT_DIR$/api-gateway" />
             <option value="$PROJECT_DIR$/booking-service" />
             <option value="$PROJECT_DIR$/event-service" />
+            <option value="$PROJECT_DIR$/notification-service" />
+            <option value="$PROJECT_DIR$/statistic-service" />
             <option value="$PROJECT_DIR$/ticket-service" />
           </set>
         </option>

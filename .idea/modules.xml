@@ -5,6 +5,8 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/api-gateway/tickethub.api-gateway.main.iml" filepath="$PROJECT_DIR$/.idea/modules/api-gateway/tickethub.api-gateway.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/booking-service/tickethub.booking-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/booking-service/tickethub.booking-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/event-service/tickethub.event-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/event-service/tickethub.event-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/notification-service/tickethub.notification-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/notification-service/tickethub.notification-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/statistic-service/tickethub.statistic-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/statistic-service/tickethub.statistic-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/ticket-service/tickethub.ticket-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/ticket-service/tickethub.ticket-service.main.iml" />
     </modules>
   </component>
