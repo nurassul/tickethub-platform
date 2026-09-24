@@ -1,6 +1,7 @@
 package dev.project.booking.api.controllers;
 
 
+import dev.project.booking.api.annotation.Idempotent;
 import dev.project.booking.api.services.BookingService;
 import dev.project.booking.dto.BookingResponse;
 import dev.project.booking.dto.CreateBookingRequest;
@@ -26,6 +27,7 @@ public class BookingController {
     private final BookingService bookingService;
     
 
+    @Idempotent
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(
             @Valid @RequestBody CreateBookingRequest request
