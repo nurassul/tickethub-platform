@@ -1,6 +1,7 @@
 package dev.project.event.api.service.impl;
 
 
+import dev.project.event.api.exceptions.BusinessConflictException;
 import dev.project.event.api.service.SeatService;
 import dev.project.event.dto.seat.CreateSeatBatchRequest;
 import dev.project.event.dto.seat.SeatBatchResponse;
@@ -39,7 +40,7 @@ public class SeatServiceImpl implements SeatService {
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id=" + eventID));
 
         if (event.getStatus() != EventStatus.DRAFT) {
-            throw new IllegalStateException(
+            throw new BusinessConflictException(
                     "Seats can be added only to a draft event"
             );
         }
@@ -68,6 +69,10 @@ public class SeatServiceImpl implements SeatService {
         Event event = eventRepository.findById(eventID)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found with id=" + eventID));
 
+        if (event.getStatus() != EventStatus.PUBLISHED) {
+            throw new EntityNotFoundException("Event not found with id=" + eventID);
+        }
+
         List<SeatResponse> seats = seatRepository.findAllByEvent(event).stream()
                 .map(mapper::toResponse)
                 .toList();
@@ -86,7 +91,7 @@ public class SeatServiceImpl implements SeatService {
 
 
         if (event.getStatus() != EventStatus.PUBLISHED) {
-            throw new IllegalStateException(
+            throw new BusinessConflictException(
                     "Bookings are allowed only for PUBLISHED events!"
             );
         }

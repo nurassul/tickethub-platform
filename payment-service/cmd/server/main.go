@@ -107,6 +107,18 @@ func main() {
 	bookingExpiredRepository := repository.NewBookingExpiredEventRepository(pool)
 
 	bookingExpiredHandler := kafka.NewBookingExpiredHandler(bookingExpiredRepository)
+	bookingPaymentRejectedRepository := repository.NewBookingPaymentRejectedRepository(pool)
+	bookingPaymentRejectedService := service.NewBookingPaymentRejectedService(
+		paymentRepository,
+		bookingPaymentRejectedRepository,
+		cfg.KafkaPaymentEventsTopic,
+	)
+	bookingPaymentRejectedHandler := kafka.NewBookingPaymentRejectedHandler(bookingPaymentRejectedService)
+
+	bookingEventsHandler := kafka.NewBookingEventsHandler(
+		bookingExpiredHandler,
+		bookingPaymentRejectedHandler,
+	)
 	consumerRestartDelay := 5 * time.Second
 	go func() {
 		for {
@@ -114,7 +126,7 @@ func main() {
 				return
 			}
 
-			err := bookingEventsConsumer.Run(appCtx, bookingExpiredHandler.Handle)
+			err := bookingEventsConsumer.Run(appCtx, bookingEventsHandler.Handle)
 			if err != nil && appCtx.Err() == nil {
 				log.Printf("booking events consumer failed: %v", err)
 				log.Printf(
@@ -167,10 +179,13 @@ func main() {
 	paymentGRPCHandler := grpctransport.NewPaymentGRPCHandler(paymentService)
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	payments := r.Group("/api/v1/mock/payments")
-	payments.GET("/:paymentId", paymentHTTPHandler.GetByID)
-	payments.POST("/:paymentId/succeed", paymentHTTPHandler.MarkSucceeded)
-	payments.POST("/:paymentId/fail", paymentHTTPHandler.FailPayment)
+
+	if cfg.MockPaymentsEnabled {
+		payments := r.Group("/api/v1/mock/payments")
+		payments.GET("/:paymentId", paymentHTTPHandler.GetByID)
+		payments.POST("/:paymentId/succeed", paymentHTTPHandler.MarkSucceeded)
+		payments.POST("/:paymentId/fail", paymentHTTPHandler.FailPayment)
+	}
 
 	listener, err := net.Listen("tcp", ":"+cfg.GRPCPort)
 	if err != nil {

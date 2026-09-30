@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -29,6 +30,9 @@ public class Booking {
     @Column(name = "event_id", nullable = false)
     private UUID eventId;
 
+    @Column(name = "confirmed_payment_id", nullable = true)
+    private UUID confirmedPaymentId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default
@@ -43,10 +47,13 @@ public class Booking {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "guest_token_hash", length = 64)
+    private String guestTokenHash;
+
 
     @PrePersist
     void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         createdAt = now;
         updatedAt = now;
@@ -59,6 +66,6 @@ public class Booking {
 
     @PreUpdate
     void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }

@@ -7,6 +7,7 @@ import (
 	"payment-service/internal/domain"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -17,6 +18,10 @@ func (s *PaymentService) Create(
 ) (*domain.Payment, error) {
 	now := time.Now().UTC()
 
+	if command.BookingID == uuid.Nil {
+		return nil, domain.ErrInvalidBookingID
+	}
+
 	if !command.BookingExpiresAt.After(now) {
 		return nil, domain.ErrBookingExpired
 	}
@@ -26,12 +31,12 @@ func (s *PaymentService) Create(
 	}
 
 	validCurrency := strings.ToUpper(strings.TrimSpace(command.Currency))
-	if len(validCurrency) != 3 {
+	if validCurrency != "KZT" {
 		return nil, domain.ErrInvalidCurrency
 	}
 
 	idempotencyKey := strings.TrimSpace(command.IdempotencyKey)
-	if idempotencyKey == "" {
+	if idempotencyKey == "" || utf8.RuneCountInString(idempotencyKey) > 255 {
 		return nil, domain.ErrInvalidIdempotencyKey
 	}
 

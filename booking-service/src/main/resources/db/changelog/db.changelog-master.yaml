@@ -7,3 +7,7 @@ databaseChangeLog:
       file: db/changelog/changeset/003-create-outbox-events-table.sql
   - include:
       file: db/changelog/changeset/004-add-status-to-booking-seats.sql
+  - include:
+      file: db/changelog/changeset/005-add-guest-token-hash.sql
+  - include:
+      file: db/changelog/changeset/006-add-confirmed-payment-id.sql

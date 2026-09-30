@@ -9,16 +9,15 @@ import java.util.UUID;
 
 public interface BookingService {
 
-    BookingResponse createBooking(CreateBookingRequest request);
+    BookingResponse createBooking(CreateBookingRequest request, String guestToken);
 
-    BookingResponse getBooking(UUID bookingId);
+    BookingResponse getBooking(UUID bookingId, String guestToken);
 
-    void cancelBooking(UUID bookingId);
+    void cancelBooking(UUID bookingId, String guestToken);
 
-    void confirmBooking(UUID bookingId);
 
-    PaymentStartResponse startPayment(UUID bookingId);
+    PaymentStartResponse startPayment(UUID bookingId, String guestToken);
 
-    PaymentResponse getPayment(UUID paymentId);
+    PaymentResponse getPayment(UUID paymentId, String guestToken);
 
 }

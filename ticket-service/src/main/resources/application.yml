@@ -5,6 +5,15 @@ spring:
   application:
     name: ticket-service
 
+  cloud:
+    openfeign:
+      client:
+        config:
+          booking-access:
+            connect-timeout: 2000
+            read-timeout: 3000
+            logger-level: none
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db:5432/ticket_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
@@ -43,6 +52,11 @@ management:
   otlp:
     tracing:
       endpoint: ${JAEGER_URL:http://jaeger:4318/v1/traces}
+
+clients:
+  booking-service:
+    url: ${BOOKING_SERVICE_URL:http://booking-api:8081}
+
 
 app:
   kafka:

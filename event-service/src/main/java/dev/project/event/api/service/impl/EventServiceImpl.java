@@ -1,5 +1,6 @@
 package dev.project.event.api.service.impl;
 
+import dev.project.event.api.exceptions.BusinessConflictException;
 import dev.project.event.api.service.EventService;
 import dev.project.event.dto.event.CreateEventRequest;
 import dev.project.event.dto.event.EventResponse;
@@ -42,7 +43,7 @@ public class EventServiceImpl implements EventService {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    @Value("${KAFKA_EVENTS_TOPIC:tickethub.event.changes.v1}")
+    @Value("${KAFKA_EVENTS_TOPIC:tickethub.events.changes.v1}")
     private String kafkaEventsTopic;
 
 
@@ -66,6 +67,10 @@ public class EventServiceImpl implements EventService {
     public EventResponse findEventById(UUID eventID) {
         Event event = getEventById(eventID);
 
+        if (event.getStatus() != EventStatus.PUBLISHED) {
+            throw new EntityNotFoundException("Event was not found by id=" + eventID);
+        }
+
         return mapper.toResponse(event);
     }
 
@@ -86,8 +91,10 @@ public class EventServiceImpl implements EventService {
                 .map(EventDocument::getId)
                 .toList();
 
-        List<Event> eventsFromDB = eventRepository.findAllById(eventIds);
-
+        List<Event> eventsFromDB = eventRepository.findAllByIdInAndStatus(
+                eventIds,
+                EventStatus.PUBLISHED
+        );
         return eventsFromDB.stream()
                 .map(mapper::toResponse)
                 .toList();
@@ -111,7 +118,7 @@ public class EventServiceImpl implements EventService {
         Event event = getEventById(eventID);
 
         if (event.getStatus() != EventStatus.DRAFT) {
-            throw new IllegalStateException(
+            throw new BusinessConflictException(
                     "Only draft event can be edited"
             );
         }
@@ -141,19 +148,19 @@ public class EventServiceImpl implements EventService {
         Event event = getEventById(eventID);
 
         if (event.getStatus() == EventStatus.PUBLISHED) {
-            throw new IllegalStateException("You can't publish event which already PUBLISHED!");
+            throw new BusinessConflictException("You can't publish event which already PUBLISHED!");
         }
 
         if (event.getStatus() == EventStatus.CANCELLED) {
-            throw new IllegalStateException("You can't publish event which was CANCELLED!");
+            throw new BusinessConflictException("You can't publish event which was CANCELLED!");
         }
 
         if (event.getStatus() == EventStatus.COMPLETED) {
-            throw new IllegalStateException("You can't publish event which was COMPLETED!");
+            throw new BusinessConflictException("You can't publish event which was COMPLETED!");
         }
 
         if (!seatRepository.existsByEventId(eventID)) {
-            throw new IllegalStateException("This event has no seats!");
+            throw new BusinessConflictException("This event has no seats!");
         }
 
         event.setStatus(EventStatus.PUBLISHED);
@@ -168,7 +175,7 @@ public class EventServiceImpl implements EventService {
         Event event = getEventById(eventID);
 
         if (event.getStatus() == EventStatus.COMPLETED) {
-            throw new IllegalStateException("You can't 'CANCEL' event which was 'COMPLETED'");
+            throw new BusinessConflictException("You can't 'CANCEL' event which was 'COMPLETED'");
         }
 
         if (event.getStatus() != EventStatus.CANCELLED) {

@@ -1,7 +1,9 @@
 package dev.project.booking.api.services;
 
 
+import dev.project.booking.api.exceptions.BusinessConflictException;
 import dev.project.booking.dto.*;
+import dev.project.booking.dto.enums.PaymentConfirmationOutcome;
 import dev.project.booking.dto.feign.ValidatedSeatsResponse;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.repository.entity.BookingSeat;
@@ -14,16 +16,17 @@ import dev.project.booking.repository.postgresql.BookingSeatRepository;
 import dev.project.booking.repository.postgresql.SeatReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,9 +41,13 @@ public class BookingPersistenceService {
     public BookingResponse create(
             UUID bookingId,
             CreateBookingRequest request,
-            ValidatedSeatsResponse validated
+            ValidatedSeatsResponse validated,
+            String guestTokenHash,
+            LocalDateTime expiresAt
     ) {
-        LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(10);
+        if (!expiresAt.isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
+            throw new BusinessConflictException("Booking has expired");
+        }
 
         Booking booking = Booking.builder()
                 .id(bookingId)
@@ -49,6 +56,7 @@ public class BookingPersistenceService {
                 .customerPhone(request.customerPhone())
                 .expiresAt(expiresAt)
                 .status(BookingStatus.HOLD)
+                .guestTokenHash(guestTokenHash)
                 .build();
 
         Booking savedBooking = bookingRepository.save(booking);
@@ -95,26 +103,55 @@ public class BookingPersistenceService {
 
     @Transactional
     public BookingData cancel(UUID bookingId) {
-        Booking booking = getBooking(bookingId);
+        Booking booking = getBookingForUpdate(bookingId);
 
-        if (booking.getStatus() == BookingStatus.CONFIRMED) {
-            throw new IllegalStateException(
-                    "Confirmed booking cannot be cancelled"
-            );
-        }
+        switch (booking.getStatus()) {
+            case BookingStatus.PAYMENT_FAILED -> {
+                throw new BusinessConflictException(
+                        "Booking payment failed status cannot be cancelled"
+                );
+            }
 
-        if (booking.getStatus() == BookingStatus.EXPIRED) {
-            throw new IllegalStateException(
-                    "Booking has already expired"
-            );
+            case BookingStatus.EXPIRED -> {
+                throw new BusinessConflictException(
+                        "Booking has already expired"
+                );
+            }
+
+            case BookingStatus.CONFIRMED -> {
+                throw new BusinessConflictException(
+                        "Booking has already confirmed"
+                );
+            }
+
+            case BookingStatus.PARTIALLY_CANCELLED -> {
+                throw new BusinessConflictException(
+                        "Booking has already partially cancelled"
+                );
+            }
+
+            case HOLD -> {
+
+
+                booking.setStatus(BookingStatus.CANCELLED);
+
+                seatReservationRepository.deleteAllByBooking_Id(bookingId);
+
+            }
+
+            case CANCELLED -> {
+            }
+
+            default -> {
+                throw new BusinessConflictException("Invalid BookingStatus");
+            }
+
+
         }
 
         List<BookingSeat> seats =
                 bookingSeatRepository.findAllByBooking_Id(bookingId);
 
-        booking.setStatus(BookingStatus.CANCELLED);
-
-        seatReservationRepository.deleteAllByBooking_Id(bookingId);
 
         return new BookingData(
                 booking.getId(),
@@ -122,21 +159,50 @@ public class BookingPersistenceService {
                 seats.stream().map(BookingSeat::getSeatId).toList(),
                 booking.getCustomerEmail()
         );
+
+
     }
 
-
     @Transactional
-    public BookingData confirm(UUID bookingId) {
-        Booking booking = getBooking(bookingId);
+    public PaymentConfirmationResult confirmPayment(
+            UUID bookingId,
+            UUID paymentId,
+            Instant paidAt
+    ) {
+        if (paymentId == null || paidAt == null) {
+            throw new IllegalArgumentException("paymentId or paidAt is null");
+        }
 
-        if (booking.getStatus() != BookingStatus.HOLD) {
-            throw new IllegalStateException(
-                    "Booking status is not 'HOLD'"
+        var booking = getBookingForUpdate(bookingId);
+
+        if (Objects.equals(booking.getConfirmedPaymentId(), paymentId)) {
+            return new PaymentConfirmationResult(
+                    PaymentConfirmationOutcome.ALREADY_PROCESSED,
+                    null,
+                    null
+            );
+        } else if (booking.getConfirmedPaymentId() != null) {
+            return new PaymentConfirmationResult(
+                    PaymentConfirmationOutcome.REJECTED,
+                    null,
+                    "Booking already confirmed by another payment"
             );
         }
 
-        if (!booking.getExpiresAt().isAfter(LocalDateTime.now())) {
-            throw new IllegalStateException("Booking has expired");
+        if (booking.getStatus() != BookingStatus.HOLD) {
+            return new PaymentConfirmationResult(
+                    PaymentConfirmationOutcome.REJECTED,
+                    null,
+                    "Booking is no longer hold"
+            );
+        }
+
+        if (!paidAt.isBefore(booking.getExpiresAt().toInstant(ZoneOffset.UTC))) {
+            return new PaymentConfirmationResult(
+                    PaymentConfirmationOutcome.REJECTED,
+                    null,
+                    "Payment occurred after booking expiration"
+            );
         }
 
         List<BookingSeat> seats =
@@ -145,33 +211,66 @@ public class BookingPersistenceService {
         List<SeatReservation> reservations =
                 seatReservationRepository.findAllByBooking_Id(bookingId);
 
-        if (reservations.size() != seats.size()) {
-            throw new IllegalStateException(
+
+        if (reservations.size() != seats.size() || seats.isEmpty()) {
+            return new PaymentConfirmationResult(
+                    PaymentConfirmationOutcome.REJECTED,
+                    null,
+                    "Booking reservations are inconsistent"
+            );
+        }
+
+        var seatIds = seats.stream()
+                .map(BookingSeat::getSeatId)
+                .collect(Collectors.toSet());
+        var reservationSeatIds = reservations.stream()
+                .map(SeatReservation::getSeatId)
+                .collect(Collectors.toSet());
+        if (!seatIds.equals(reservationSeatIds)) {
+            return new PaymentConfirmationResult(
+                    PaymentConfirmationOutcome.REJECTED,
+                    null,
+                    "Booking reservations are inconsistent"
+            );
+        }
+
+        if (reservations.stream().anyMatch(
+                seatReservation -> seatReservation.getStatus() != SeatReservationStatus.HOLD)) {
+            return new PaymentConfirmationResult(
+                    PaymentConfirmationOutcome.REJECTED,
+                    null,
                     "Booking reservations are inconsistent"
             );
         }
 
         booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setConfirmedPaymentId(paymentId);
 
         reservations.forEach(reservation -> {
             reservation.setStatus(SeatReservationStatus.CONFIRMED);
             reservation.setExpiresAt(null);
         });
 
-        return new BookingData(
-                booking.getId(),
-                booking.getEventId(),
-                seats.stream().map(BookingSeat::getSeatId).toList(),
-                booking.getCustomerEmail()
+        return new PaymentConfirmationResult(
+                PaymentConfirmationOutcome.CONFIRMED,
+                new BookingData(
+                        booking.getId(),
+                        booking.getEventId(),
+                        seats.stream().map(BookingSeat::getSeatId).toList(),
+                        booking.getCustomerEmail()
+                ),
+                null
         );
+
     }
+
 
     @Transactional
     public BookingData failPayment(UUID bookingId) {
-        Booking booking = getBooking(bookingId);
+        Booking booking = getBookingForUpdate(bookingId);
 
         if (booking.getStatus() != BookingStatus.HOLD) {
-            throw new IllegalStateException(
+            throw new BusinessConflictException(
                     "Booking status is not 'HOLD'"
             );
         }
@@ -208,11 +307,11 @@ public class BookingPersistenceService {
         var booking = getBooking(bookingId);
 
         if (booking.getStatus() != BookingStatus.HOLD) {
-            throw new IllegalStateException("Booking status is not 'HOLD'");
+            throw new BusinessConflictException("Booking status is not 'HOLD'");
         }
 
-        if (!booking.getExpiresAt().isAfter(LocalDateTime.now())) {
-            throw new IllegalStateException("Booking is expired");
+        if (!booking.getExpiresAt().isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
+            throw new BusinessConflictException("Booking is expired");
         }
 
         List<BookingSeat> seats =
@@ -242,7 +341,7 @@ public class BookingPersistenceService {
             UUID eventId,
             UUID seatId
     ) {
-        var booking = getBooking(bookingId);
+        var booking = getBookingForUpdate(bookingId);
 
         if (!(BookingStatus.CONFIRMED.equals(booking.getStatus()) || BookingStatus.PARTIALLY_CANCELLED.equals(booking.getStatus()))) {
             throw new IllegalStateException("Booking status must be 'CONFIRMED' or 'PARTIALLY_CANCELLED'");
@@ -293,10 +392,15 @@ public class BookingPersistenceService {
     }
 
 
-
-
     private Booking getBooking(UUID bookingId) {
         return bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Booking not found with id=" + bookingId
+                ));
+    }
+
+    private Booking getBookingForUpdate(UUID bookingId) {
+        return bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Booking not found with id=" + bookingId
                 ));

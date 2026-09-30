@@ -23,7 +23,7 @@ func NewBookingExpiredHandler(
 	}
 }
 
-func (h *BookingExpiredHandler) Handle(
+func (h *BookingExpiredHandler) HandleExpired(
 	ctx context.Context,
 	record *kgo.Record,
 ) error {
@@ -33,15 +33,15 @@ func (h *BookingExpiredHandler) Handle(
 		return fmt.Errorf("unmarshal booking.expired event: %w", err)
 	}
 
-	if err := validate(bookingExpiredEvent); err != nil {
-		return fmt.Errorf("validate event: %w", err)
+	if err := validateExpiredEvent(bookingExpiredEvent); err != nil {
+		return fmt.Errorf("validateExpiredEvent event: %w", err)
 	}
 
 	if bookingExpiredEvent.EventType != BookingExpiredEventType {
 		return fmt.Errorf("incorrect event type")
 	}
 
-	paymentExpired, err := h.processor.Process(
+	paymentExpired, err := h.processor.ProcessExpired(
 		ctx,
 		bookingExpiredEvent.EventID,
 		bookingExpiredEvent.Payload.BookingID,
@@ -69,7 +69,7 @@ func (h *BookingExpiredHandler) Handle(
 	return nil
 }
 
-func validate(event BookingExpiredEvent) error {
+func validateExpiredEvent(event BookingExpiredEvent) error {
 	if event.EventVersion != 1 {
 		return fmt.Errorf("event version not equal to 1")
 	}

@@ -1,0 +1,2 @@
+ALTER TABLE  bookings
+    ADD COLUMN confirmed_payment_id UUID;

@@ -65,7 +65,7 @@ func (r *Relay) RunOnce(ctx context.Context) error {
 			)
 
 			if markErr := r.repository.MarkAttemptFailed(ctx, event.ID, err); markErr != nil {
-				return fmt.Errorf("mark outbox event published: %w", err)
+				return fmt.Errorf("mark outbox publish attempt failed: %w", markErr)
 			}
 			return nil
 		}

@@ -2,6 +2,7 @@ package dev.project.booking.api.aspect;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.project.booking.api.services.GuestBookingTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,8 @@ public class IdempotencyAspect {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final GuestBookingTokenService guestBookingTokenService;
+
     private static final String HEADER = "Idempotency-Key";
 
     @Around("@annotation(dev.project.booking.api.annotation.Idempotent)")
@@ -40,7 +43,13 @@ public class IdempotencyAspect {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing header: " + HEADER);
         }
 
-        String redisKey = "idemp:" + idempotencyKey;
+        String guestToken = request.getHeader("X-Booking-Token");
+        String guestTokenHash = guestBookingTokenService.hash(guestToken);
+
+        String redisKey = "idemp:booking:v2:"
+                + guestTokenHash
+                + ":"
+                + idempotencyKey;
         String cachedValue = redisTemplate.opsForValue().get(redisKey);
 
         if (cachedValue != null) {

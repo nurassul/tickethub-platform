@@ -12,5 +12,6 @@ var (
 	ErrIdempotencyConflict   = errors.New("idempotency conflict")
 	ErrInvalidIdempotencyKey = errors.New("invalid idempotency key")
 	ErrInvalidPaymentID      = errors.New("invalid payment id")
+	ErrInvalidBookingID      = errors.New("invalid booking id")
 	ErrInvalidFailureReason  = errors.New("invalid failure reason")
 )

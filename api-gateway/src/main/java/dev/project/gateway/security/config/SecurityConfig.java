@@ -31,14 +31,51 @@ public class SecurityConfig {
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchange -> exchange
-                        .pathMatchers("/api/v1/events/admin/**")
+                        .pathMatchers("/fallback/global")
+                        .permitAll()
+
+                        .pathMatchers("/api/v1/internal/**")
+                        .denyAll()
+
+
+                        .pathMatchers("/api/v1/events/admin", "/api/v1/events/admin/**")
                         .hasAnyRole("ADMIN", "ORGANIZER")
 
-                        .pathMatchers(HttpMethod.GET, "/api/v1/events/**")
+                        .pathMatchers(HttpMethod.GET,
+                                "/api/v1/events",
+                                "/api/v1/events/search",
+                                "/api/v1/events/*",
+                                "/api/v1/events/*/seats")
                         .permitAll()
 
-                        .anyExchange()
+                        .pathMatchers(HttpMethod.POST, "/api/v1/tickets/*/scan")
+                        .hasAnyRole("ADMIN", "CONTROLLER")
+
+                        .pathMatchers(HttpMethod.POST,
+                                "/api/v1/bookings",
+                                "/api/v1/bookings/*/payment",
+                                "/api/v1/bookings/*/cancel",
+                                "/api/v1/tickets/*/cancel")
                         .permitAll()
+
+                        .pathMatchers(HttpMethod.GET,
+                                "/api/v1/bookings/*",
+                                "/api/v1/bookings/*/payment",
+                                "/api/v1/tickets/*")
+                        .permitAll()
+
+
+                        .pathMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**")
+                        .permitAll()
+
+                        .pathMatchers(HttpMethod.GET, "/actuator/prometheus")
+                        .permitAll()
+
+                        .pathMatchers("/actuator/**")
+                        .hasRole("ADMIN")
+
+                        .anyExchange()
+                        .denyAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(

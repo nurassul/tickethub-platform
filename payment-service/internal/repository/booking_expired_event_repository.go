@@ -20,7 +20,7 @@ func NewBookingExpiredEventRepository(
 	}
 }
 
-func (r *BookingExpiredEventRepository) Process(
+func (r *BookingExpiredEventRepository) ProcessExpired(
 	ctx context.Context,
 	eventID uuid.UUID,
 	bookingID uuid.UUID,

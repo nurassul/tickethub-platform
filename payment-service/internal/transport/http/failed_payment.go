@@ -16,7 +16,7 @@ func (h *PaymentHTTPHandler) FailPayment(
 	rawPaymentID := c.Param("paymentId")
 
 	paymentID, err := uuid.Parse(rawPaymentID)
-	if err != nil {
+	if err != nil || paymentID == uuid.Nil {
 		c.JSON(
 			http.StatusBadRequest, gin.H{
 				"message": "paymentId not valid",

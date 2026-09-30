@@ -11,6 +11,7 @@ type Config struct {
 	DatabaseURL                string
 	HTTPPort                   string
 	MockCheckoutURL            string
+	MockPaymentsEnabled        bool
 	GRPCPort                   string
 	KafkaBrokers               string
 	KafkaPaymentEventsTopic    string
@@ -35,6 +36,19 @@ func Load() (Config, error) {
 	mockUrl := os.Getenv("MOCK_CHECKOUT_URL")
 	if mockUrl == "" {
 		mockUrl = "http://localhost:8085/api/v1/mock/payments"
+	}
+
+	rawMockEnabled := os.Getenv("MOCK_PAYMENTS_ENABLED")
+	mockEnabled := false
+	if rawMockEnabled != "" {
+		parseEnabled, err := strconv.ParseBool(rawMockEnabled)
+		if err != nil {
+			return Config{}, fmt.Errorf(
+				"MOCK_PAYMENTS_ENABLED parsing err: %w", err,
+			)
+		}
+
+		mockEnabled = parseEnabled
 	}
 
 	grpcPort := os.Getenv("GRPC_PORT")
@@ -64,7 +78,7 @@ func Load() (Config, error) {
 
 	kafkaBookingEventsDLTTopic := os.Getenv("KAFKA_BOOKING_EVENTS_DLT_TOPIC")
 	if kafkaBookingEventsDLTTopic == "" {
-		kafkaBookingEventsGroupID = "tickethub.booking.events.v1.dlt"
+		kafkaBookingEventsDLTTopic = "tickethub.booking.events.v1.dlt"
 	}
 
 	outboxRelayInterval := 2 * time.Second
@@ -112,6 +126,7 @@ func Load() (Config, error) {
 		DatabaseURL:                db,
 		GRPCPort:                   grpcPort,
 		MockCheckoutURL:            mockUrl,
+		MockPaymentsEnabled:        mockEnabled,
 		KafkaBrokers:               kafkaBrokers,
 		KafkaPaymentEventsTopic:    kafkaPaymentEventsTopic,
 		KafkaBookingEventsTopic:    kafkaBookingEventsTopic,

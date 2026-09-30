@@ -21,6 +21,7 @@ func convertError(err error) error {
 		return status.Error(codes.NotFound, err.Error())
 
 	case errors.Is(err, domain.ErrInvalidPaymentID),
+		errors.Is(err, domain.ErrInvalidBookingID),
 		errors.Is(err, domain.ErrInvalidAmount),
 		errors.Is(err, domain.ErrInvalidCurrency),
 		errors.Is(err, domain.ErrInvalidIdempotencyKey),
