@@ -35,7 +35,8 @@ func convertError(err error) error {
 		return status.Error(codes.AlreadyExists, err.Error())
 
 	case errors.Is(err, domain.ErrBookingExpired),
-		errors.Is(err, domain.ErrInvalidPaymentStatus):
+		errors.Is(err, domain.ErrInvalidPaymentStatus),
+		errors.Is(err, domain.ErrBookingCancelled):
 
 		return status.Error(
 			codes.FailedPrecondition,

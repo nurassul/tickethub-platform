@@ -16,14 +16,8 @@ func (s *PaymentService) Create(
 	ctx context.Context,
 	command CreatePaymentCommand,
 ) (*domain.Payment, error) {
-	now := time.Now().UTC()
-
 	if command.BookingID == uuid.Nil {
 		return nil, domain.ErrInvalidBookingID
-	}
-
-	if !command.BookingExpiresAt.After(now) {
-		return nil, domain.ErrBookingExpired
 	}
 
 	if command.AmountMinor <= 0 {
@@ -40,6 +34,61 @@ func (s *PaymentService) Create(
 		return nil, domain.ErrInvalidIdempotencyKey
 	}
 
+	existingPayment, err := s.findExistingPayment(ctx, command, idempotencyKey, validCurrency)
+	if err != nil {
+		return nil, err
+	} else if existingPayment != nil {
+		return existingPayment, nil
+	}
+
+	now := time.Now().UTC()
+	if !command.BookingExpiresAt.After(now) {
+		return nil, domain.ErrBookingExpired
+	}
+
+	paymentID := uuid.New()
+	validatedURL := strings.TrimRight(s.mockCheckoutURL, "/")
+	url := validatedURL + "/" + paymentID.String()
+	payment := domain.Payment{
+		ID:               paymentID,
+		BookingID:        command.BookingID,
+		AmountMinor:      command.AmountMinor,
+		Currency:         validCurrency,
+		Status:           domain.PaymentPending,
+		IdempotencyKey:   idempotencyKey,
+		PaymentURL:       &url,
+		FailureReason:    nil,
+		BookingExpiresAt: command.BookingExpiresAt.UTC(),
+		CreatedAt:        now,
+		UpdatedAt:        now,
+		PaidAt:           nil,
+	}
+
+	savedPayment, err := s.paymentRepository.Create(ctx, &payment)
+	if errors.Is(err, domain.ErrPaymentAlreadyExists) {
+		existingPayment, lookupErr := s.findExistingPayment(ctx, command, idempotencyKey, validCurrency)
+		if lookupErr != nil {
+			return nil, lookupErr
+		} else if existingPayment != nil {
+			return existingPayment, nil
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf(
+			"create payment: %w",
+			err,
+		)
+	}
+
+	return savedPayment, nil
+}
+
+func (s *PaymentService) findExistingPayment(
+	ctx context.Context,
+	command CreatePaymentCommand,
+	idempotencyKey string,
+	validCurrency string,
+) (*domain.Payment, error) {
 	paymentByKey, err := s.paymentRepository.FindByIdempotencyKey(ctx, idempotencyKey)
 	if err == nil {
 		if !(paymentByKey.BookingID == command.BookingID && paymentByKey.Currency == validCurrency && paymentByKey.AmountMinor == command.AmountMinor) {
@@ -63,31 +112,5 @@ func (s *PaymentService) Create(
 		return nil, fmt.Errorf("find payment by booking id: %w", err)
 	}
 
-	paymentID := uuid.New()
-	validatedURL := strings.TrimRight(s.mockCheckoutURL, "/")
-	url := validatedURL + "/" + paymentID.String()
-	payment := domain.Payment{
-		ID:               paymentID,
-		BookingID:        command.BookingID,
-		AmountMinor:      command.AmountMinor,
-		Currency:         validCurrency,
-		Status:           domain.PaymentPending,
-		IdempotencyKey:   idempotencyKey,
-		PaymentURL:       &url,
-		FailureReason:    nil,
-		BookingExpiresAt: command.BookingExpiresAt.UTC(),
-		CreatedAt:        now,
-		UpdatedAt:        now,
-		PaidAt:           nil,
-	}
-
-	savedPayment, err := s.paymentRepository.Create(ctx, &payment)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"create payment: %w",
-			err,
-		)
-	}
-
-	return savedPayment, nil
+	return nil, nil
 }

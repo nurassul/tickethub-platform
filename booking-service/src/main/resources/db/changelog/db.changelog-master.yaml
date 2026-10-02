@@ -11,3 +11,5 @@ databaseChangeLog:
       file: db/changelog/changeset/005-add-guest-token-hash.sql
   - include:
       file: db/changelog/changeset/006-add-confirmed-payment-id.sql
+  - include:
+      file: db/changelog/changeset/007-create-booking-idempotency.sql

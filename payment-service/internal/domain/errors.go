@@ -14,4 +14,5 @@ var (
 	ErrInvalidPaymentID      = errors.New("invalid payment id")
 	ErrInvalidBookingID      = errors.New("invalid booking id")
 	ErrInvalidFailureReason  = errors.New("invalid failure reason")
+	ErrBookingCancelled      = errors.New("booking cancelled")
 )

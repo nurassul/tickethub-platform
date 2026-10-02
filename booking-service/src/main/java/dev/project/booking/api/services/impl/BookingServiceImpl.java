@@ -42,10 +42,20 @@ public class BookingServiceImpl implements BookingService {
     private final PaymentGrpcClient paymentGrpcClient;
     private final GuestBookingTokenService guestBookingTokenService;
     private final GuestBookingAccessService guestBookingAccessService;
+    private final BookingRequestHashService bookingRequestHashService;
+    private final BookingIdempotencyService bookingIdempotencyService;
 
 
     @Override
-    public BookingResponse createBooking(CreateBookingRequest request, String guestToken) {
+    public BookingResponse createBooking(CreateBookingRequest request, String guestToken, String idempotencyKey) {
+
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("Idempotency-Key must not be blank");
+        }
+        if (idempotencyKey.length() > 255) {
+            throw new IllegalArgumentException("Idempotency-Key must not exceed 255 characters");
+        }
+
         String guestTokenHash = guestBookingTokenService.hash(guestToken);
         Set<UUID> uniqueSeatIds = new HashSet<>(request.seatIds());
 
@@ -56,6 +66,12 @@ public class BookingServiceImpl implements BookingService {
         }
 
         List<UUID> seatIds = List.copyOf(uniqueSeatIds);
+
+        String requestHash = bookingRequestHashService.hash(request);
+        var existingResult = bookingIdempotencyService.findExisting(guestTokenHash, idempotencyKey, requestHash);
+        if (existingResult.isPresent()) {
+               return bookingIdempotencyService.restoreResponse(existingResult.get());
+        }
 
         ValidatedSeatsResponse validated = validateSeats(request.eventId(), seatIds);
 
@@ -74,6 +90,10 @@ public class BookingServiceImpl implements BookingService {
         );
 
         if (!held) {
+            var savedResult = bookingIdempotencyService.findExisting(guestTokenHash, idempotencyKey, requestHash);
+            if (savedResult.isPresent()) {
+                return bookingIdempotencyService.restoreResponse(savedResult.get());
+            }
             throw new SeatAlreadyReservedException(
                     "One or more selected seats are already reserved"
             );
@@ -85,7 +105,9 @@ public class BookingServiceImpl implements BookingService {
                     request,
                     validated,
                     guestTokenHash,
-                    expiresAt
+                    expiresAt,
+                    idempotencyKey,
+                    requestHash
             );
         } catch (DataIntegrityViolationException exception) {
             seatHoldService.release(
@@ -94,7 +116,20 @@ public class BookingServiceImpl implements BookingService {
                     seatIds
             );
 
+            if (isUniqueConstraintViolation(exception, "uk_booking_idempotency_guest_key")) {
+                var savedResult = bookingIdempotencyService.findExisting(guestTokenHash, idempotencyKey, requestHash);
+                if (savedResult.isPresent()) {
+                    return bookingIdempotencyService.restoreResponse(savedResult.get());
+                } else {
+                    throw exception;
+                }
+            }
+
             if (isUniqueConstraintViolation(exception, "uk_active_event_seat")) {
+                var savedResult = bookingIdempotencyService.findExisting(guestTokenHash, idempotencyKey, requestHash);
+                if (savedResult.isPresent()) {
+                    return bookingIdempotencyService.restoreResponse(savedResult.get());
+                }
                 throw new SeatAlreadyReservedException(
                         "One or more selected seats are already reserved",
                         exception

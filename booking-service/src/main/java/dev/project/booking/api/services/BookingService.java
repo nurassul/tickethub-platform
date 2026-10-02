@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public interface BookingService {
 
-    BookingResponse createBooking(CreateBookingRequest request, String guestToken);
+    BookingResponse createBooking(CreateBookingRequest request, String guestToken, String idempotencyKey);
 
     BookingResponse getBooking(UUID bookingId, String guestToken);
 

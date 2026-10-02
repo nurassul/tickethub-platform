@@ -114,10 +114,14 @@ func main() {
 		cfg.KafkaPaymentEventsTopic,
 	)
 	bookingPaymentRejectedHandler := kafka.NewBookingPaymentRejectedHandler(bookingPaymentRejectedService)
+	bookingCancelledRepository := repository.NewBookingCancelledRepository(pool)
+	bookingCancelledService := service.NewBookingCancelledService(bookingCancelledRepository)
+	bookingCancelledHandler := kafka.NewBookingCancelledHandler(bookingCancelledService)
 
 	bookingEventsHandler := kafka.NewBookingEventsHandler(
 		bookingExpiredHandler,
 		bookingPaymentRejectedHandler,
+		bookingCancelledHandler,
 	)
 	consumerRestartDelay := 5 * time.Second
 	go func() {

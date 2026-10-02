@@ -12,15 +12,18 @@ import (
 type BookingEventsHandler struct {
 	bookingExpiredHandler         *BookingExpiredHandler
 	bookingPaymentRejectedHandler *BookingPaymentRejectedHandler
+	bookingCancelledHandler       *BookingCancelledHandler
 }
 
 func NewBookingEventsHandler(
 	bookingExpiredHandler *BookingExpiredHandler,
 	bookingPaymentRejectedHandler *BookingPaymentRejectedHandler,
+	bookingCancelledHandler *BookingCancelledHandler,
 ) *BookingEventsHandler {
 	return &BookingEventsHandler{
 		bookingExpiredHandler:         bookingExpiredHandler,
 		bookingPaymentRejectedHandler: bookingPaymentRejectedHandler,
+		bookingCancelledHandler:       bookingCancelledHandler,
 	}
 }
 
@@ -46,6 +49,8 @@ func (h *BookingEventsHandler) Handle(
 		return h.bookingPaymentRejectedHandler.HandleRejected(ctx, record)
 	case "booking.confirmed":
 		return nil
+	case BookingCancelledType:
+		return h.bookingCancelledHandler.HandleCancelled(ctx, record)
 	default:
 		return fmt.Errorf("invalid eventType: %q", header.EventType)
 	}

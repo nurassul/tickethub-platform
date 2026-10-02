@@ -5,6 +5,7 @@ import dev.project.booking.api.exceptions.BusinessConflictException;
 import dev.project.booking.dto.*;
 import dev.project.booking.dto.enums.PaymentConfirmationOutcome;
 import dev.project.booking.dto.feign.ValidatedSeatsResponse;
+import dev.project.booking.integration.kafka.service.BookingOutboxService;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.repository.entity.BookingSeat;
 import dev.project.booking.repository.entity.SeatReservation;
@@ -35,6 +36,8 @@ public class BookingPersistenceService {
     private final BookingRepository bookingRepository;
     private final BookingSeatRepository bookingSeatRepository;
     private final SeatReservationRepository seatReservationRepository;
+    private final BookingOutboxService bookingOutboxService;
+    private final BookingIdempotencyService bookingIdempotencyService;
 
 
     @Transactional
@@ -43,7 +46,9 @@ public class BookingPersistenceService {
             CreateBookingRequest request,
             ValidatedSeatsResponse validated,
             String guestTokenHash,
-            LocalDateTime expiresAt
+            LocalDateTime expiresAt,
+            String idempotencyKey,
+            String requestHash
     ) {
         if (!expiresAt.isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
             throw new BusinessConflictException("Booking has expired");
@@ -87,7 +92,10 @@ public class BookingPersistenceService {
         seatReservationRepository.saveAll(reservations);
         seatReservationRepository.flush();
 
-        return toResponse(savedBooking, bookingSeats);
+        var response = toResponse(savedBooking, bookingSeats);
+        bookingIdempotencyService.saveResult(guestTokenHash, idempotencyKey, requestHash, response);
+
+        return response;
     }
 
 
@@ -131,12 +139,9 @@ public class BookingPersistenceService {
             }
 
             case HOLD -> {
-
-
                 booking.setStatus(BookingStatus.CANCELLED);
-
                 seatReservationRepository.deleteAllByBooking_Id(bookingId);
-
+                bookingOutboxService.saveBookingCancelled(bookingId);
             }
 
             case CANCELLED -> {
@@ -167,7 +172,9 @@ public class BookingPersistenceService {
     public PaymentConfirmationResult confirmPayment(
             UUID bookingId,
             UUID paymentId,
-            Instant paidAt
+            Instant paidAt,
+            long amountMinor,
+            String currency
     ) {
         if (paymentId == null || paidAt == null) {
             throw new IllegalArgumentException("paymentId or paidAt is null");
@@ -240,6 +247,27 @@ public class BookingPersistenceService {
                     PaymentConfirmationOutcome.REJECTED,
                     null,
                     "Booking reservations are inconsistent"
+            );
+        }
+
+        if (!"KZT".equals(currency)) {
+            return new PaymentConfirmationResult(
+                    PaymentConfirmationOutcome.REJECTED,
+                    null,
+                    "Payment currency mismatch"
+            );
+        }
+
+        long expectedAmountMinor = seats.stream()
+                .map(BookingSeat::getPriceAtBooking)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .movePointRight(2).longValueExact();
+
+        if (amountMinor != expectedAmountMinor) {
+            return new PaymentConfirmationResult(
+                    PaymentConfirmationOutcome.REJECTED,
+                    null,
+                    "Payment amount mismatch"
             );
         }
 

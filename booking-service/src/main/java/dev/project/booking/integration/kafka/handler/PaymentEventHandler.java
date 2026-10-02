@@ -41,7 +41,9 @@ public class PaymentEventHandler {
                     var result = bookingPersistenceService.confirmPayment(
                             paymentEvent.payload().bookingId(),
                             paymentEvent.payload().paymentId(),
-                            paymentEvent.payload().paidAt()
+                            paymentEvent.payload().paidAt(),
+                            paymentEvent.payload().amountMinor(),
+                            paymentEvent.payload().currency()
                     );
 
                     switch (result.outcome()) {

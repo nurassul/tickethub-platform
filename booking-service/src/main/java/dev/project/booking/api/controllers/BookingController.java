@@ -1,17 +1,13 @@
 package dev.project.booking.api.controllers;
 
 
-import dev.project.booking.api.annotation.Idempotent;
 import dev.project.booking.api.services.BookingService;
 import dev.project.booking.dto.BookingResponse;
 import dev.project.booking.dto.CreateBookingRequest;
 import dev.project.booking.dto.PaymentResponse;
 import dev.project.booking.dto.PaymentStartResponse;
-import dev.project.booking.repository.entity.Booking;
-import dev.project.booking.utils.BookingMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,16 +23,17 @@ public class BookingController {
     private final BookingService bookingService;
     
 
-    @Idempotent
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(
             @Valid @RequestBody CreateBookingRequest request,
             @RequestHeader(value = "X-Booking-Token", required = false)
-            String guestToken
+            String guestToken,
+            @RequestHeader(value = "Idempotency-Key", required = false)
+            String idempotencyKey
     ) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(bookingService.createBooking(request, guestToken));
+                .body(bookingService.createBooking(request, guestToken, idempotencyKey));
     }
 
     @GetMapping("/{bookingId}")

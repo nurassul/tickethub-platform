@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"payment-service/internal/domain"
 	"payment-service/internal/kafka"
@@ -56,6 +57,17 @@ func (s *PaymentService) MarkFailed(
 		reasonCorrect,
 		outboxEvent,
 	)
+	if errors.Is(err, domain.ErrPaymentNotFound) {
+		currentPayment, lookupErr := s.GetByID(ctx, paymentID)
+		if lookupErr != nil {
+			return nil, lookupErr
+		}
+		if currentPayment.Status == domain.PaymentFailed {
+			return currentPayment, nil
+		} else {
+			return nil, domain.ErrInvalidPaymentStatus
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("mark failed payment: %w", err)
 	}
