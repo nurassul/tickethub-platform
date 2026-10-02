@@ -1,20 +1,20 @@
 package dev.project.booking.redis.service;
 
 
+import dev.project.booking.api.exceptions.BusinessConflictException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class SeatHoldService {
-
-    private static final Duration HOLD_DURATION = Duration.ofMinutes(10);
 
     private static final DefaultRedisScript<Long> HOLD_SCRIPT =
             new DefaultRedisScript<>("""
@@ -25,7 +25,7 @@ public class SeatHoldService {
                 end
 
                 for i, key in ipairs(KEYS) do
-                    redis.call('set', key, ARGV[1], 'PX', ARGV[2])
+                    redis.call('set', key, ARGV[1], 'PXAT', ARGV[2])
                 end
 
                 return 1
@@ -73,15 +73,21 @@ public class SeatHoldService {
     public boolean tryHold(
             UUID bookingId,
             UUID eventId,
-            List<UUID> seatIds
+            List<UUID> seatIds,
+            LocalDateTime expiresAt
     ) {
+        long expiresAtMilli = expiresAt.toInstant(ZoneOffset.UTC).toEpochMilli();
+        if (!expiresAt.isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
+            throw new BusinessConflictException("Booking has expired");
+        }
+
         List<String> keys = buildKeys(eventId, seatIds);
 
         Long result = redisTemplate.execute(
                 HOLD_SCRIPT,
                 keys,
                 bookingId.toString(),
-                String.valueOf(HOLD_DURATION.toMillis())
+                String.valueOf(expiresAtMilli)
         );
 
         return Long.valueOf(1).equals(result);

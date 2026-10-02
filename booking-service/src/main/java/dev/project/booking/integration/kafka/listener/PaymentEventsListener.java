@@ -21,6 +21,7 @@ public class PaymentEventsListener {
 
     private static final String FAILED_TYPE = "payment.failed";
     private static final String SUCCEEDED_TYPE = "payment.succeeded";
+    private static final String REFUNDED_TYPE = "payment.refunded";
 
 
     private final ObjectMapper mapper;
@@ -36,8 +37,6 @@ public class PaymentEventsListener {
         );
 
         validate(event);
-        paymentEventHandler.handleEvent(event);
-
         log.debug(
                 "Payment event parsed: id={}, type={}, bookingId={}, status={}",
                 event.eventId(),
@@ -45,6 +44,14 @@ public class PaymentEventsListener {
                 event.payload().bookingId(),
                 event.payload().status()
         );
+
+        if (REFUNDED_TYPE.equals(event.eventType())) {
+            return;
+        }
+
+        paymentEventHandler.handleEvent(event);
+
+
     }
 
 
@@ -53,7 +60,8 @@ public class PaymentEventsListener {
             throw new IllegalArgumentException("Failed! 'eventVersion' is not equal to 1");
         }
 
-        if (!(FAILED_TYPE.equals(paymentEvent.eventType()) || SUCCEEDED_TYPE.equals(paymentEvent.eventType()))) {
+        if (!(FAILED_TYPE.equals(paymentEvent.eventType()) || SUCCEEDED_TYPE.equals(paymentEvent.eventType()) ||
+                REFUNDED_TYPE.equals(paymentEvent.eventType()))) {
             throw new IllegalArgumentException("Incorrect 'eventType': " + paymentEvent.eventType());
         }
 
@@ -71,6 +79,13 @@ public class PaymentEventsListener {
 
         ) {
             throw new IllegalArgumentException("payment.succeeded must have SUCCEEDED status");
+        }
+
+        if (REFUNDED_TYPE.equals(paymentEvent.eventType())
+                && (!("REFUNDED".equals(paymentEvent.payload().status())) || paymentEvent.payload().paidAt() == null)
+
+        ) {
+            throw new IllegalArgumentException("payment.refunded must have REFUNDED status");
         }
 
         if (FAILED_TYPE.equals(paymentEvent.eventType())

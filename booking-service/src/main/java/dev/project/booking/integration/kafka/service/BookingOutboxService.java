@@ -4,8 +4,10 @@ package dev.project.booking.integration.kafka.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.project.booking.dto.BookingData;
+import dev.project.booking.integration.kafka.event.BookingCancelledEvent;
 import dev.project.booking.integration.kafka.event.BookingConfirmedEvent;
 import dev.project.booking.integration.kafka.event.BookingExpiredEvent;
+import dev.project.booking.integration.kafka.event.BookingPaymentRejectedEvent;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.repository.entity.OutboxEvent;
 import dev.project.booking.repository.postgresql.OutboxEventRepository;
@@ -23,6 +25,8 @@ public class BookingOutboxService {
 
     private static final String BOOKING_EXPIRED_TYPE = "booking.expired";
     private static final String BOOKING_CONFIRMED_TYPE = "booking.confirmed";
+    private static final String BOOKING_PAYMENT_REJECTED_TYPE = "booking.payment-rejected";
+    private static final String BOOKING_CANCELLED_TYPE = "booking.cancelled";
 
 
     private final ObjectMapper objectMapper;
@@ -113,4 +117,98 @@ public class BookingOutboxService {
 
         outboxEventRepository.save(outboxEvent);
     }
+
+
+
+    public void saveBookingPaymentRejected(
+            UUID bookingId,
+            UUID paymentId,
+            String reason
+    ) {
+        Instant now = Instant.now();
+
+        BookingPaymentRejectedEvent event = new BookingPaymentRejectedEvent(
+                UUID.randomUUID(),
+                BOOKING_PAYMENT_REJECTED_TYPE,
+                1,
+                now,
+                "booking-service",
+                "booking",
+                bookingId,
+                bookingId,
+                new BookingPaymentRejectedEvent.Payload(
+                        bookingId,
+                        paymentId,
+                        reason
+                )
+        );
+
+        String payload;
+
+        try {
+            payload = objectMapper.writeValueAsString(event);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(
+                    "Failed to serialize booking.payment-rejected event",
+                    e
+            );
+        }
+
+        OutboxEvent outboxEvent = OutboxEvent.builder()
+                .id(event.eventId())
+                .topic(bookingEventsTopic)
+                .messageKey(bookingId.toString())
+                .eventType(event.eventType())
+                .payload(payload)
+                .build();
+
+        outboxEventRepository.save(outboxEvent);
+    }
+
+
+    public void saveBookingCancelled(UUID bookingId) {
+        Instant now = Instant.now();
+
+        BookingCancelledEvent event = new BookingCancelledEvent(
+                UUID.randomUUID(),
+                BOOKING_CANCELLED_TYPE,
+                1,
+                now,
+                "booking-service",
+                "booking",
+                bookingId,
+                bookingId,
+                new BookingCancelledEvent.Payload(
+                        bookingId,
+                        now
+                )
+        );
+
+        String payload;
+
+        try {
+            payload = objectMapper.writeValueAsString(event);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(
+                    "Failed to serialize booking.cancelled event",
+                    e
+            );
+        }
+
+        OutboxEvent outboxEvent = OutboxEvent.builder()
+                .id(event.eventId())
+                .topic(bookingEventsTopic)
+                .messageKey(bookingId.toString())
+                .eventType(event.eventType())
+                .payload(payload)
+                .build();
+
+        outboxEventRepository.save(outboxEvent);
+
+
+
+    }
+
+
+
 }

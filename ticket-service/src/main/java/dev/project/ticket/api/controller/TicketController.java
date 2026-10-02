@@ -25,8 +25,11 @@ public class TicketController {
 
     @GetMapping("/{bookingId}")
     public ResponseEntity<List<TicketResponse>> getByBookingId(
-            @PathVariable UUID bookingId) {
-        var res = ticketQueryService.findByBookingId(bookingId);
+            @PathVariable UUID bookingId,
+            @RequestHeader(value = "X-Booking-Token", required = false)
+            String guestToken
+    ) {
+        var res = ticketQueryService.findByBookingId(bookingId, guestToken);
 
 
         return ResponseEntity.ok(res);
@@ -34,9 +37,11 @@ public class TicketController {
 
     @PostMapping("/{ticketId}/cancel")
     public ResponseEntity<TicketResponse> cancelTicket(
-            @PathVariable UUID ticketId
+            @PathVariable UUID ticketId,
+            @RequestHeader(value = "X-Booking-Token", required = false)
+            String guestToken
     ) {
-        var res = ticketQueryService.cancelTicket(ticketId);
+        var res = ticketQueryService.cancelTicket(ticketId, guestToken);
 
         return ResponseEntity.ok(res);
     }

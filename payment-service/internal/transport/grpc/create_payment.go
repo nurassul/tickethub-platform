@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	paymentv1 "payment-service/gen/payment/v1"
+	"payment-service/internal/domain"
 	"payment-service/internal/service"
 	"time"
 
@@ -15,8 +16,8 @@ func (h *PaymentGRPCHandler) CreatePayment(
 	in *paymentv1.CreatePaymentRequest,
 ) (*paymentv1.PaymentResponse, error) {
 	bookingId, err := uuid.Parse(in.GetBookingId())
-	if err != nil {
-		return nil, convertError(err)
+	if err != nil || bookingId == uuid.Nil {
+		return nil, convertError(domain.ErrInvalidBookingID)
 	}
 
 	bookingExpires := time.Unix(in.GetBookingExpiresAtUnix(), 0).UTC()

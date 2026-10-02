@@ -3,23 +3,42 @@ server:
 spring:
   application:
     name: api-gateway
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+
   cloud:
     gateway:
       server:
         webflux:
+
+          default-filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 5
+                key-resolver: "#{@ipKeyResolver}"
+            - name: CircuitBreaker
+              args:
+                name: globalCircuitBreaker
+                fallbackUri: forward:/fallback/global
+
           routes:
             - id: booking-service
-              uri: ${BOOKING_SERVICE_URL:http://localhost:8081}
+              uri: ${BOOKING_SERVICE_URL:http://booking-api:8081}
               predicates:
                 - Path=/api/v1/bookings/**
             - id: ticket-service
-              uri: ${TICKET_SERVICE_URL:http://localhost:8083}
+              uri: ${TICKET_SERVICE_URL:http://ticket-api:8083}
               predicates:
                 - Path=/api/v1/tickets/**
             - id: event-service
-              uri: ${EVENT_SERVICE_URL:http://localhost:8084}
+              uri: ${EVENT_SERVICE_URL:http://event-api:8084}
               predicates:
                 - Path=/api/v1/events/**
+
   security:
     oauth2:
       resourceserver:
@@ -27,7 +46,16 @@ spring:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/tickethub}
           jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://keycloak:8080/realms/tickethub/protocol/openid-connect/certs}
 
+
+resilience4j:
+  timelimiter:
+    instances:
+      globalCircuitBreaker:
+        timeout-duration: 8s
+
 management:
+  server:
+    port: 9092
   endpoints:
     web:
       exposure:

@@ -37,23 +37,54 @@ public class PaymentEventHandler {
 
             switch (paymentEvent.eventType()) {
                 case SUCCEEDED_TYPE -> {
-                    BookingData bookingData = bookingPersistenceService.confirm(paymentEvent.payload().bookingId());
-                    bookingOutboxService.saveBookingConfirmed(bookingData);
 
-                    log.info("new payment succeeded event: eventId={}, bookingId={}, seatIds = {}",
-                            paymentEvent.eventId(),
-                            bookingData.bookingId(),
-                            bookingData.seatIds()
+                    var result = bookingPersistenceService.confirmPayment(
+                            paymentEvent.payload().bookingId(),
+                            paymentEvent.payload().paymentId(),
+                            paymentEvent.payload().paidAt(),
+                            paymentEvent.payload().amountMinor(),
+                            paymentEvent.payload().currency()
                     );
 
-                    runAfterCommit(() -> {
-                        seatHoldService.markSold(
-                                bookingData.bookingId(),
-                                bookingData.eventId(),
-                                bookingData.seatIds()
-                        );
-                    });
+                    switch (result.outcome()) {
+                        case CONFIRMED -> {
+                            bookingOutboxService.saveBookingConfirmed(result.bookingData());
 
+                            log.info("new payment succeeded event: eventId={}, bookingId={}, seatIds = {}",
+                                    paymentEvent.eventId(),
+                                    result.bookingData().bookingId(),
+                                    result.bookingData().seatIds()
+                            );
+
+                            runAfterCommit(() -> {
+                                seatHoldService.markSold(
+                                        result.bookingData().bookingId(),
+                                        result.bookingData().eventId(),
+                                        result.bookingData().seatIds()
+                                );
+                            });
+                        }
+
+                        case ALREADY_PROCESSED -> {
+                            log.debug("payment already processed: bookingId={}, paymentId={}",
+                                    paymentEvent.payload().bookingId(),
+                                    paymentEvent.payload().paymentId()
+                            );
+                        }
+
+                        case REJECTED -> {
+                            bookingOutboxService.saveBookingPaymentRejected(
+                                    paymentEvent.payload().bookingId(),
+                                    paymentEvent.payload().paymentId(),
+                                    result.rejectionReason()
+                            );
+                            log.warn("payment rejected: bookingId={}, paymentId={}, reason={}",
+                                    paymentEvent.payload().bookingId(),
+                                    paymentEvent.payload().paymentId(),
+                                    result.rejectionReason()
+                            );
+                        }
+                    }
                 }
 
                 case FAILED_TYPE -> {

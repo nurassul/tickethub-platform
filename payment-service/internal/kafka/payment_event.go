@@ -9,6 +9,7 @@ import (
 const (
 	PaymentSucceededEventType = "payment.succeeded"
 	PaymentFailedEventType    = "payment.failed"
+	PaymentRefundedEventType  = "payment.refunded"
 )
 
 type PaymentEvent struct {

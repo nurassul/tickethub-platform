@@ -20,7 +20,7 @@ public class TicketService {
 
     @Transactional
     public TicketScanResponse scanTicket(UUID ticketId) {
-        var ticket = ticketRepository.findById(ticketId)
+        var ticket = ticketRepository.findByIdForUpdate(ticketId)
                 .orElseThrow(() -> new EntityNotFoundException("Ticket not found id: " + ticketId));
 
 

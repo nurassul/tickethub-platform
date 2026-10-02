@@ -96,8 +96,8 @@ func (r *OutboxRepository) MarkAttemptFailed(
 	    last_error = $2,
 	    next_attempt_at = NOW() + LEAST(
     	INTERVAL '5 minutes',
-    	INTERVAL '2 seconds' * POWER(2::double precision, attempts)
-),
+    	INTERVAL '2 seconds' * POWER(2::double precision, LEAST(attempts, 8))
+	)
 	WHERE id = $1
 		AND published_at IS NULL
 	`

@@ -6,11 +6,8 @@ import dev.project.booking.dto.BookingResponse;
 import dev.project.booking.dto.CreateBookingRequest;
 import dev.project.booking.dto.PaymentResponse;
 import dev.project.booking.dto.PaymentStartResponse;
-import dev.project.booking.repository.entity.Booking;
-import dev.project.booking.utils.BookingMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,26 +25,36 @@ public class BookingController {
 
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(
-            @Valid @RequestBody CreateBookingRequest request
+            @Valid @RequestBody CreateBookingRequest request,
+            @RequestHeader(value = "X-Booking-Token", required = false)
+            String guestToken,
+            @RequestHeader(value = "Idempotency-Key", required = false)
+            String idempotencyKey
     ) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(bookingService.createBooking(request));
+                .body(bookingService.createBooking(request, guestToken, idempotencyKey));
     }
 
     @GetMapping("/{bookingId}")
     public ResponseEntity<BookingResponse> getBooking(
-            @PathVariable UUID bookingId
+            @PathVariable UUID bookingId,
+            @RequestHeader(value = "X-Booking-Token", required = false)
+            String guestToken
     ) {
         return ResponseEntity.ok(
-                bookingService.getBooking(bookingId)
+                bookingService.getBooking(bookingId, guestToken)
         );
     }
 
 
     @PostMapping("/{bookingId}/payment")
-    public ResponseEntity<PaymentStartResponse> startPayment(@PathVariable UUID bookingId) {
-        var response = bookingService.startPayment(bookingId);
+    public ResponseEntity<PaymentStartResponse> startPayment(
+            @PathVariable UUID bookingId,
+            @RequestHeader(value = "X-Booking-Token", required = false)
+            String guestToken
+    ) {
+        var response = bookingService.startPayment(bookingId, guestToken);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -55,8 +62,12 @@ public class BookingController {
     }
 
     @GetMapping("/{paymentId}/payment")
-    public ResponseEntity<PaymentResponse> getPayment(@PathVariable UUID paymentId) {
-        var response = bookingService.getPayment(paymentId);
+    public ResponseEntity<PaymentResponse> getPayment(
+            @PathVariable UUID paymentId,
+            @RequestHeader(value = "X-Booking-Token", required = false)
+            String guestToken
+    ) {
+        var response = bookingService.getPayment(paymentId, guestToken);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
@@ -65,9 +76,11 @@ public class BookingController {
 
     @PostMapping("/{bookingId}/cancel")
     public ResponseEntity<Void> cancelBooking(
-            @PathVariable UUID bookingId
+            @PathVariable UUID bookingId,
+            @RequestHeader(value = "X-Booking-Token", required = false)
+            String guestToken
     ) {
-        bookingService.cancelBooking(bookingId);
+        bookingService.cancelBooking(bookingId, guestToken);
 
         return ResponseEntity
                 .noContent()
@@ -75,14 +88,5 @@ public class BookingController {
     }
 
 
-    @PostMapping("/{bookingId}/confirm")
-    public ResponseEntity<Void> confirmBooking(
-            @PathVariable UUID bookingId
-    ) {
-        bookingService.confirmBooking(bookingId);
 
-        return ResponseEntity
-                .noContent()
-                .build();
-    }
 }

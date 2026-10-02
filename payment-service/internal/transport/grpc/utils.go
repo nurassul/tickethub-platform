@@ -21,6 +21,7 @@ func convertError(err error) error {
 		return status.Error(codes.NotFound, err.Error())
 
 	case errors.Is(err, domain.ErrInvalidPaymentID),
+		errors.Is(err, domain.ErrInvalidBookingID),
 		errors.Is(err, domain.ErrInvalidAmount),
 		errors.Is(err, domain.ErrInvalidCurrency),
 		errors.Is(err, domain.ErrInvalidIdempotencyKey),
@@ -34,7 +35,8 @@ func convertError(err error) error {
 		return status.Error(codes.AlreadyExists, err.Error())
 
 	case errors.Is(err, domain.ErrBookingExpired),
-		errors.Is(err, domain.ErrInvalidPaymentStatus):
+		errors.Is(err, domain.ErrInvalidPaymentStatus),
+		errors.Is(err, domain.ErrBookingCancelled):
 
 		return status.Error(
 			codes.FailedPrecondition,
