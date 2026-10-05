@@ -14,6 +14,7 @@ import dev.project.booking.repository.entity.enums.BookingStatus;
 import dev.project.booking.repository.entity.enums.SeatReservationStatus;
 import dev.project.booking.repository.postgresql.BookingRepository;
 import dev.project.booking.repository.postgresql.BookingSeatRepository;
+import dev.project.booking.repository.postgresql.CancelledEventsRepository;
 import dev.project.booking.repository.postgresql.SeatReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -38,6 +40,8 @@ public class BookingPersistenceService {
     private final SeatReservationRepository seatReservationRepository;
     private final BookingOutboxService bookingOutboxService;
     private final BookingIdempotencyService bookingIdempotencyService;
+    private final EventLockService eventLockService;
+    private final CancelledEventsRepository cancelledEventsRepository;
 
 
     @Transactional
@@ -50,6 +54,13 @@ public class BookingPersistenceService {
             String idempotencyKey,
             String requestHash
     ) {
+        eventLockService.lock(request.eventId());
+
+        if (cancelledEventsRepository.existsById(request.eventId())) {
+            throw new BusinessConflictException("Event already cancelled");
+        }
+
+
         if (!expiresAt.isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
             throw new BusinessConflictException("Booking has expired");
         }
@@ -416,6 +427,46 @@ public class BookingPersistenceService {
         }
 
         bookingSeat.setStatus(BookingSeatStatus.CANCELLED);
+
+    }
+
+    @Transactional
+    public Optional<BookingData> cancelForCancelledEvent(UUID bookingId) {
+        var booking = getBookingForUpdate(bookingId);
+
+        if (!cancelledEventsRepository.existsById(booking.getEventId())) {
+            return Optional.empty();
+        }
+
+        if (booking.getStatus() != BookingStatus.HOLD &&
+                booking.getStatus() != BookingStatus.PARTIALLY_CANCELLED &&
+                booking.getStatus() != BookingStatus.CONFIRMED) {
+            return Optional.empty();
+        }
+
+        var seats = bookingSeatRepository.findAllByBooking_Id(bookingId);
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        seats.forEach(r ->
+                r.setStatus(BookingSeatStatus.CANCELLED)
+        );
+
+        seatReservationRepository.deleteAllByBooking_Id(bookingId);
+
+        bookingOutboxService.saveBookingCancelled(bookingId);
+
+        Optional<BookingData> bookingData = Optional.of(
+                new BookingData(
+                        bookingId,
+                        booking.getEventId(),
+                        seats.stream()
+                                .map(BookingSeat::getSeatId)
+                                .toList(),
+                        booking.getCustomerEmail()
+                )
+        );
+        return bookingData;
+
 
     }
 

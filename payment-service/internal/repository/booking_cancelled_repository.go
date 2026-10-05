@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"payment-service/internal/domain"
 	"time"
 
 	"github.com/google/uuid"
@@ -61,6 +63,19 @@ func (r *BookingCancelledRepository) ProcessCancelled(
 	_, err = tx.Exec(ctx, queryCancelled, bookingID, cancelledAt)
 	if err != nil {
 		return fmt.Errorf("save booking cancellation: %w", err)
+	}
+
+	querySelect := `
+    SELECT ` + paymentColumns + `
+    FROM payments
+    WHERE booking_id = $1
+	FOR UPDATE
+	`
+	payment, err := scanPayment(
+		tx.QueryRow(ctx, querySelect, bookingID),
+	)
+	if err != nil && !errors.Is(err, domain.ErrPaymentNotFound) {
+		return fmt.Errorf("payment not found: %w", err)
 	}
 
 	queryUpdate := `

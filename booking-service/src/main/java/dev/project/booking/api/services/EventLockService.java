@@ -1,0 +1,30 @@
+package dev.project.booking.api.services;
+
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+@RequiredArgsConstructor
+@Service
+public class EventLockService {
+
+    private final JdbcTemplate jdbcTemplate;
+
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lock(UUID eventId) {
+        String query = "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))";
+        String lockKey = "event:" + eventId.toString();
+
+        ResultSetExtractor<Void> extractor = rs -> null;
+
+        jdbcTemplate.query(query, extractor, lockKey);
+    }
+
+}
