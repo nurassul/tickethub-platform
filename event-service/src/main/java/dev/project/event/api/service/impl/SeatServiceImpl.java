@@ -9,17 +9,19 @@ import dev.project.event.dto.seat.SeatResponse;
 import dev.project.event.dto.seat.booking.ValidateSeatsRequest;
 import dev.project.event.dto.seat.booking.ValidatedSeatResponse;
 import dev.project.event.dto.seat.booking.ValidatedSeatsResponse;
-import dev.project.event.repository.postgresql.EventRepository;
-import dev.project.event.repository.postgresql.SeatRepository;
 import dev.project.event.repository.entity.Event;
 import dev.project.event.repository.entity.Seat;
 import dev.project.event.repository.entity.enums.EventStatus;
+import dev.project.event.repository.postgresql.EventRepository;
+import dev.project.event.repository.postgresql.SeatRepository;
 import dev.project.event.utils.SeatMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -94,6 +96,11 @@ public class SeatServiceImpl implements SeatService {
             throw new BusinessConflictException(
                     "Bookings are allowed only for PUBLISHED events!"
             );
+        }
+
+        var now = LocalDateTime.now(ZoneOffset.UTC);
+        if (!event.getStartsAt().isAfter(now)) {
+            throw new BusinessConflictException("Booking is closed: event has already started");
         }
 
         Set<UUID> uniqueSeatIds = new HashSet<>(request.seatIds());

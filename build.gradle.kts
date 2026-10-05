@@ -23,7 +23,7 @@ subprojects {
             implementation("org.springframework.boot:spring-boot-starter-web")
         }
 
-        // Lombok (чтобы не писать геттеры/сеттеры)
+        // Lombok
         compileOnly("org.projectlombok:lombok")
         annotationProcessor("org.projectlombok:lombok")
 

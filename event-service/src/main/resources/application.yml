@@ -52,3 +52,12 @@ management:
 logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [traceId=%X{traceId}, spanId=%X{spanId}] - %msg%n"
+
+app:
+  kafka:
+    topics:
+      event-events: tickethub.event.events.v1
+  outbox:
+    relay:
+      batch-size: 100
+      fixed-delay-ms: 1000

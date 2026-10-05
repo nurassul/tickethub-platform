@@ -85,6 +85,8 @@ services:
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.ticket.events.v1 --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.ticket.events.v1.dlt --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.events.changes.v1 --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.event.events.v1 --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic tickethub.event.events.v1.dlt --partitions 1 --replication-factor 1
     networks:
       - app-network
 
@@ -188,6 +190,8 @@ services:
       OUTBOX_RELAY_BATCH_SIZE: 100
       KAFKA_TICKET_EVENTS_TOPIC: tickethub.ticket.events.v1
       KAFKA_TICKET_EVENTS_GROUP_ID: booking-ticket-events-v1
+      KAFKA_EVENT_EVENTS_TOPIC: tickethub.event.events.v1
+      KAFKA_EVENT_EVENTS_GROUP_ID: booking-event-events-v1
       JAEGER_URL: http://jaeger:4318/v1/traces
     networks:
       - app-network

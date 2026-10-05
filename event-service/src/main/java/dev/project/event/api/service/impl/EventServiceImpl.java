@@ -7,6 +7,7 @@ import dev.project.event.dto.event.EventResponse;
 import dev.project.event.dto.event.UpdateEventRequest;
 import dev.project.event.elasticsearch.EventDocument;
 import dev.project.event.kafka.event.EventSyncMessage;
+import dev.project.event.kafka.service.EventOutboxService;
 import dev.project.event.repository.es.EventSearchRepository;
 import dev.project.event.repository.postgresql.EventRepository;
 import dev.project.event.repository.postgresql.SeatRepository;
@@ -23,6 +24,9 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -39,6 +43,7 @@ public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final SeatRepository seatRepository;
     private final EventSearchRepository eventSearchRepository;
+    private final EventOutboxService eventOutboxService;
     private final EventMapper mapper;
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -115,7 +120,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public EventResponse updateEvent(UUID eventID, UpdateEventRequest request) {
-        Event event = getEventById(eventID);
+        Event event = getEventByIdForUpdate(eventID);
 
         if (event.getStatus() != EventStatus.DRAFT) {
             throw new BusinessConflictException(
@@ -145,7 +150,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public EventResponse publishEvent(UUID eventID) {
-        Event event = getEventById(eventID);
+        Event event = getEventByIdForUpdate(eventID);
 
         if (event.getStatus() == EventStatus.PUBLISHED) {
             throw new BusinessConflictException("You can't publish event which already PUBLISHED!");
@@ -163,6 +168,11 @@ public class EventServiceImpl implements EventService {
             throw new BusinessConflictException("This event has no seats!");
         }
 
+        var now = LocalDateTime.now(ZoneOffset.UTC);
+        if (!event.getStartsAt().isAfter(now)) {
+            throw new BusinessConflictException("Cannot publish an event that has already started");
+        }
+
         event.setStatus(EventStatus.PUBLISHED);
 
         syncToElasticSearch(event);
@@ -172,19 +182,43 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public EventResponse cancelEvent(UUID eventID) {
-        Event event = getEventById(eventID);
+        Event event = getEventByIdForUpdate(eventID);
 
-        if (event.getStatus() == EventStatus.COMPLETED) {
-            throw new BusinessConflictException("You can't 'CANCEL' event which was 'COMPLETED'");
+
+        switch (event.getStatus()) {
+            case CANCELLED -> {
+                return mapper.toResponse(event);
+            }
+
+            case COMPLETED -> {
+                throw new BusinessConflictException("'COMPLETED' event can't be 'CANCELLED'");
+            }
+
+            case PUBLISHED -> {
+                if (!event.getStartsAt().isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
+                    throw new BusinessConflictException("Event already started");
+                }
+            }
         }
 
-        if (event.getStatus() != EventStatus.CANCELLED) {
-            event.setStatus(EventStatus.CANCELLED);
+        boolean isPublished = event.getStatus() == EventStatus.PUBLISHED;
+        event.setStatus(EventStatus.CANCELLED);
+
+        if (isPublished) {
+            eventOutboxService.saveEventCancelled(eventID);
         }
+
 
         syncToElasticSearch(event);
 
         return mapper.toResponse(event);
+
+
+    }
+
+    private Event getEventByIdForUpdate(UUID eventID) {
+        return eventRepository.findByIdForUpdate(eventID)
+                .orElseThrow(() -> new EntityNotFoundException("Event was not found by id=" + eventID));
     }
 
     private Event getEventById(UUID eventID) {

@@ -37,4 +37,13 @@ public interface BookingRepository extends JpaRepository<Booking, UUID>{
             @Param("cutoff") LocalDateTime cutoff,
             Pageable pageable);
 
+
+    @Query(
+            "SELECT b.id FROM Booking b WHERE b.status IN :statuses AND " +
+                    "EXISTS (SELECT 1 FROM CancelledEvent c WHERE c.eventId = b.eventId) ORDER BY b.id"
+    )
+    List<UUID> findBookingIdsForCancelledEvents(
+            @Param("statuses") List<BookingStatus> statuses,
+                                                Pageable pageable);
+
 }
