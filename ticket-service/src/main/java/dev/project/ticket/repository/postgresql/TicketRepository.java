@@ -26,4 +26,14 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
             "SELECT t FROM Ticket t WHERE t.id=:ticketId"
     )
     Optional<Ticket> findByIdForUpdate(@Param("ticketId") UUID ticketId);
+
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query(
+            "SELECT t FROM Ticket t WHERE t.bookingId=:bookingId ORDER BY t.id"
+    )
+    List<Ticket> findAllByBookingIdForUpdate(
+            @Param("bookingId") UUID bookingId
+    );
+
 }

@@ -115,7 +115,7 @@ func main() {
 	)
 	bookingPaymentRejectedHandler := kafka.NewBookingPaymentRejectedHandler(bookingPaymentRejectedService)
 	bookingCancelledRepository := repository.NewBookingCancelledRepository(pool)
-	bookingCancelledService := service.NewBookingCancelledService(bookingCancelledRepository)
+	bookingCancelledService := service.NewBookingCancelledService(bookingCancelledRepository, cfg.KafkaPaymentEventsTopic)
 	bookingCancelledHandler := kafka.NewBookingCancelledHandler(bookingCancelledService)
 
 	bookingEventsHandler := kafka.NewBookingEventsHandler(
