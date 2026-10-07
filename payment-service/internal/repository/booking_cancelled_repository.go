@@ -28,6 +28,7 @@ func (r *BookingCancelledRepository) ProcessCancelled(
 	eventID uuid.UUID,
 	bookingID uuid.UUID,
 	cancelledAt time.Time,
+	buildRefund func(*domain.Payment) (domain.OutboxEvent, error),
 ) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -74,20 +75,76 @@ func (r *BookingCancelledRepository) ProcessCancelled(
 	payment, err := scanPayment(
 		tx.QueryRow(ctx, querySelect, bookingID),
 	)
-	if err != nil && !errors.Is(err, domain.ErrPaymentNotFound) {
+
+	if errors.Is(err, domain.ErrPaymentNotFound) {
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("commit booking payment cancelled event: %w", err)
+		}
+		return nil
+	}
+	if err != nil {
 		return fmt.Errorf("payment not found: %w", err)
 	}
 
-	queryUpdate := `
+	switch payment.Status {
+
+	case domain.PaymentPending:
+		queryUpdate := `
 		UPDATE payments
 		SET status = 'CANCELLED',
 		    updated_at = NOW()
-		WHERE booking_id = $1
+		WHERE id = $1
 			AND status = 'PENDING'
 		`
-	_, err = tx.Exec(ctx, queryUpdate, bookingID)
-	if err != nil {
-		return fmt.Errorf("mark payment cancelled: %w", err)
+		_, err = tx.Exec(ctx, queryUpdate, payment.ID)
+		if err != nil {
+			return fmt.Errorf("mark payment cancelled: %w", err)
+		}
+
+	case domain.PaymentSucceeded:
+		outboxEvent, err := buildRefund(payment)
+		if err != nil {
+			return err
+		}
+
+		queryUpdate := `
+		UPDATE payments
+		SET status = 'REFUNDED',
+		    updated_at = NOW()
+		WHERE id = $1
+			AND status = 'SUCCEEDED'
+		`
+		res, err = tx.Exec(ctx, queryUpdate, payment.ID)
+		if err != nil {
+			return fmt.Errorf("mark payment refunded: %w", err)
+		}
+		if res.RowsAffected() != 1 {
+			return fmt.Errorf("while updating payment, was updated: %d", res.RowsAffected())
+		}
+
+		insertOutboxQuery := `
+		INSERT INTO outbox_events (
+		    id,
+		    topic,
+		    message_key,
+		    event_type,
+		    payload
+		)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+		_, err = tx.Exec(
+			ctx,
+			insertOutboxQuery,
+			outboxEvent.ID,
+			outboxEvent.Topic,
+			outboxEvent.MessageKey,
+			outboxEvent.EventType,
+			outboxEvent.Payload,
+		)
+		if err != nil {
+			return fmt.Errorf("save outbox event: %w", err)
+		}
+
 	}
 
 	if err := tx.Commit(ctx); err != nil {
