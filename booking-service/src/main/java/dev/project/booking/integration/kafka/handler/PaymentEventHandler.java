@@ -6,6 +6,7 @@ import dev.project.booking.dto.BookingData;
 import dev.project.booking.integration.kafka.event.PaymentEvent;
 import dev.project.booking.integration.kafka.service.BookingOutboxService;
 import dev.project.booking.integration.kafka.service.ProcessedEventService;
+import dev.project.booking.redis.service.BookingRedisSyncService;
 import dev.project.booking.redis.service.SeatHoldService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class PaymentEventHandler {
     private final BookingPersistenceService bookingPersistenceService;
     private final SeatHoldService seatHoldService;
     private final BookingOutboxService bookingOutboxService;
+    private final BookingRedisSyncService bookingRedisSyncService;
 
 
     @Transactional
@@ -57,12 +59,10 @@ public class PaymentEventHandler {
                             );
 
                             runAfterCommit(() -> {
-                                seatHoldService.markSold(
-                                        result.bookingData().bookingId(),
-                                        result.bookingData().eventId(),
-                                        result.bookingData().seatIds()
-                                );
+                                bookingRedisSyncService.markSoldIfActive(result.bookingData().bookingId());
                             });
+
+
                         }
 
                         case ALREADY_PROCESSED -> {
