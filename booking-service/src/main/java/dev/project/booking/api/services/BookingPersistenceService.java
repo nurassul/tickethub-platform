@@ -8,14 +8,12 @@ import dev.project.booking.dto.feign.ValidatedSeatsResponse;
 import dev.project.booking.integration.kafka.service.BookingOutboxService;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.repository.entity.BookingSeat;
+import dev.project.booking.repository.entity.RedisCleanupTask;
 import dev.project.booking.repository.entity.SeatReservation;
 import dev.project.booking.repository.entity.enums.BookingSeatStatus;
 import dev.project.booking.repository.entity.enums.BookingStatus;
 import dev.project.booking.repository.entity.enums.SeatReservationStatus;
-import dev.project.booking.repository.postgresql.BookingRepository;
-import dev.project.booking.repository.postgresql.BookingSeatRepository;
-import dev.project.booking.repository.postgresql.CancelledEventsRepository;
-import dev.project.booking.repository.postgresql.SeatReservationRepository;
+import dev.project.booking.repository.postgresql.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,6 +40,7 @@ public class BookingPersistenceService {
     private final BookingIdempotencyService bookingIdempotencyService;
     private final EventLockService eventLockService;
     private final CancelledEventsRepository cancelledEventsRepository;
+    private final RedisCleanupRepository redisCleanupRepository;
 
 
     @Transactional
@@ -455,7 +454,16 @@ public class BookingPersistenceService {
 
         bookingOutboxService.saveBookingCancelled(bookingId);
 
-        Optional<BookingData> bookingData = Optional.of(
+        var now = Instant.now();
+        RedisCleanupTask cleanupTask = RedisCleanupTask.builder()
+                .bookingId(bookingId)
+                .createdAt(now)
+                .nextAttemptAt(now)
+                .attempts(0)
+                .build();
+        redisCleanupRepository.save(cleanupTask);
+
+        return Optional.of(
                 new BookingData(
                         bookingId,
                         booking.getEventId(),
@@ -465,7 +473,6 @@ public class BookingPersistenceService {
                         booking.getCustomerEmail()
                 )
         );
-        return bookingData;
 
 
     }

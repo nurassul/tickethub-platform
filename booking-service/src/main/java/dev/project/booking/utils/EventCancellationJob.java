@@ -2,7 +2,6 @@ package dev.project.booking.utils;
 
 
 import dev.project.booking.api.services.BookingPersistenceService;
-import dev.project.booking.redis.service.SeatHoldService;
 import dev.project.booking.repository.entity.enums.BookingStatus;
 import dev.project.booking.repository.postgresql.BookingRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +20,6 @@ public class EventCancellationJob {
 
     private final BookingRepository bookingRepository;
     private final BookingPersistenceService bookingPersistenceService;
-    private final SeatHoldService seatHoldService;
 
     @Scheduled(fixedDelay = 5000)
     public void cancelBookingsForCancelledEvents() {
@@ -31,15 +29,8 @@ public class EventCancellationJob {
         );
 
         for (UUID bookingId : bookingIds) {
-
             try {
-                var data = bookingPersistenceService.cancelForCancelledEvent(bookingId);
-                if (data.isEmpty()) {
-                    continue;
-                }
-
-                seatHoldService.release(bookingId, data.get().eventId(), data.get().seatIds());
-                seatHoldService.releaseSold(bookingId, data.get().eventId(), data.get().seatIds());
+                bookingPersistenceService.cancelForCancelledEvent(bookingId);
             } catch (Exception e) {
                 log.error("Wrong while cancelling: bookingId={}", bookingId, e);
             }

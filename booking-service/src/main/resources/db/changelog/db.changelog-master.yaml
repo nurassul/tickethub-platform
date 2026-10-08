@@ -15,3 +15,5 @@ databaseChangeLog:
       file: db/changelog/changeset/007-create-booking-idempotency.sql
   - include:
       file: db/changelog/changeset/008-create-cancelled-events.sql
+  - include:
+      file: db/changelog/changeset/009-create-redis-cleanup-tasks.sql
