@@ -6,14 +6,18 @@ import dev.project.booking.dto.*;
 import dev.project.booking.dto.enums.PaymentConfirmationOutcome;
 import dev.project.booking.dto.feign.ValidatedSeatsResponse;
 import dev.project.booking.integration.kafka.service.BookingOutboxService;
+import dev.project.booking.redis.service.RedisTaskService;
 import dev.project.booking.repository.entity.Booking;
 import dev.project.booking.repository.entity.BookingSeat;
-import dev.project.booking.repository.entity.RedisCleanupTask;
 import dev.project.booking.repository.entity.SeatReservation;
 import dev.project.booking.repository.entity.enums.BookingSeatStatus;
 import dev.project.booking.repository.entity.enums.BookingStatus;
+import dev.project.booking.repository.entity.enums.RedisTaskOperation;
 import dev.project.booking.repository.entity.enums.SeatReservationStatus;
-import dev.project.booking.repository.postgresql.*;
+import dev.project.booking.repository.postgresql.BookingRepository;
+import dev.project.booking.repository.postgresql.BookingSeatRepository;
+import dev.project.booking.repository.postgresql.CancelledEventsRepository;
+import dev.project.booking.repository.postgresql.SeatReservationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,7 +44,7 @@ public class BookingPersistenceService {
     private final BookingIdempotencyService bookingIdempotencyService;
     private final EventLockService eventLockService;
     private final CancelledEventsRepository cancelledEventsRepository;
-    private final RedisCleanupRepository redisCleanupRepository;
+    private final RedisTaskService redisTaskService;
 
 
     @Transactional
@@ -152,6 +156,7 @@ public class BookingPersistenceService {
                 booking.setStatus(BookingStatus.CANCELLED);
                 seatReservationRepository.deleteAllByBooking_Id(bookingId);
                 bookingOutboxService.saveBookingCancelled(bookingId);
+                redisTaskService.enqueue(bookingId, RedisTaskOperation.RELEASE);
             }
 
             case CANCELLED -> {
@@ -289,6 +294,8 @@ public class BookingPersistenceService {
             reservation.setExpiresAt(null);
         });
 
+        redisTaskService.enqueue(bookingId, RedisTaskOperation.MARK_SOLD);
+
         return new PaymentConfirmationResult(
                 PaymentConfirmationOutcome.CONFIRMED,
                 new BookingData(
@@ -328,6 +335,8 @@ public class BookingPersistenceService {
         booking.setStatus(BookingStatus.PAYMENT_FAILED);
 
         seatReservationRepository.deleteAllByBooking_Id(bookingId);
+
+        redisTaskService.enqueue(bookingId, RedisTaskOperation.RELEASE);
 
         return new BookingData(
                 booking.getId(),
@@ -381,13 +390,22 @@ public class BookingPersistenceService {
     ) {
         var booking = getBookingForUpdate(bookingId);
 
+        if (!Objects.equals(booking.getEventId(), eventId)) {
+            throw new IllegalStateException("'eventId' must be same");
+        }
+
+        var bookingSeat = bookingSeatRepository
+                .findByBooking_IdAndSeatId(bookingId, seatId)
+                .orElseThrow(() -> new EntityNotFoundException("Booking seat not found with seatId= " + seatId));
+
+        if (bookingSeat.getStatus() == BookingSeatStatus.CANCELLED) {
+            return;
+        }
+
         if (!(BookingStatus.CONFIRMED.equals(booking.getStatus()) || BookingStatus.PARTIALLY_CANCELLED.equals(booking.getStatus()))) {
             throw new IllegalStateException("Booking status must be 'CONFIRMED' or 'PARTIALLY_CANCELLED'");
         }
 
-        if (!Objects.equals(booking.getEventId(), eventId)) {
-            throw new IllegalStateException("'eventId' must be same");
-        }
 
         var reservation = seatReservationRepository.findByBooking_IdAndSeatId(
                 bookingId,
@@ -416,16 +434,10 @@ public class BookingPersistenceService {
             booking.setStatus(BookingStatus.PARTIALLY_CANCELLED);
         }
 
-        var bookingSeat = bookingSeatRepository.findByBooking_IdAndSeatId(bookingId, seatId)
-                .orElseThrow(() -> new EntityNotFoundException("Booking seat not found with seatId= " + seatId));
-
-        if (bookingSeat.getStatus() != BookingSeatStatus.ACTIVE) {
-            throw new IllegalStateException(
-                    "Booking seat status must be 'ACTIVE'"
-            );
-        }
 
         bookingSeat.setStatus(BookingSeatStatus.CANCELLED);
+
+        redisTaskService.enqueue(bookingId, RedisTaskOperation.RELEASE);
 
     }
 
@@ -454,14 +466,7 @@ public class BookingPersistenceService {
 
         bookingOutboxService.saveBookingCancelled(bookingId);
 
-        var now = Instant.now();
-        RedisCleanupTask cleanupTask = RedisCleanupTask.builder()
-                .bookingId(bookingId)
-                .createdAt(now)
-                .nextAttemptAt(now)
-                .attempts(0)
-                .build();
-        redisCleanupRepository.save(cleanupTask);
+        redisTaskService.enqueue(bookingId, RedisTaskOperation.RELEASE);
 
         return Optional.of(
                 new BookingData(

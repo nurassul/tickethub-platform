@@ -3,3 +3,4 @@ CREATE DATABASE booking_db;
 CREATE DATABASE payment_db;
 CREATE DATABASE ticket_db;
 CREATE DATABASE keycloak_db;
+CREATE DATABASE statistic_db;

@@ -2,8 +2,10 @@ package dev.project.booking.api.services;
 
 import dev.project.booking.dto.BookingData;
 import dev.project.booking.integration.kafka.service.BookingOutboxService;
+import dev.project.booking.redis.service.RedisTaskService;
 import dev.project.booking.repository.entity.BookingSeat;
 import dev.project.booking.repository.entity.enums.BookingStatus;
+import dev.project.booking.repository.entity.enums.RedisTaskOperation;
 import dev.project.booking.repository.postgresql.BookingRepository;
 import dev.project.booking.repository.postgresql.BookingSeatRepository;
 import dev.project.booking.repository.postgresql.SeatReservationRepository;
@@ -26,6 +28,7 @@ public class BookingExpirationService {
     private final BookingSeatRepository bookingSeatRepository;
     private final SeatReservationRepository seatReservationRepository;
     private final BookingOutboxService bookingOutboxService;
+    private final RedisTaskService redisTaskService;
 
     @Transactional
     public List<BookingData> expireBookings() {
@@ -67,6 +70,8 @@ public class BookingExpirationService {
             );
 
             bookingOutboxService.saveBookingExpired(booking);
+
+            redisTaskService.enqueue(bookingId, RedisTaskOperation.RELEASE);
 
             result.add(new BookingData(
                     booking.getId(),

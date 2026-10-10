@@ -6,14 +6,10 @@ import dev.project.booking.dto.BookingData;
 import dev.project.booking.integration.kafka.event.PaymentEvent;
 import dev.project.booking.integration.kafka.service.BookingOutboxService;
 import dev.project.booking.integration.kafka.service.ProcessedEventService;
-import dev.project.booking.redis.service.BookingRedisSyncService;
-import dev.project.booking.redis.service.SeatHoldService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 
 @RequiredArgsConstructor
@@ -28,9 +24,7 @@ public class PaymentEventHandler {
 
     private final ProcessedEventService processedEventService;
     private final BookingPersistenceService bookingPersistenceService;
-    private final SeatHoldService seatHoldService;
     private final BookingOutboxService bookingOutboxService;
-    private final BookingRedisSyncService bookingRedisSyncService;
 
 
     @Transactional
@@ -57,11 +51,6 @@ public class PaymentEventHandler {
                                     result.bookingData().bookingId(),
                                     result.bookingData().seatIds()
                             );
-
-                            runAfterCommit(() -> {
-                                bookingRedisSyncService.markSoldIfActive(result.bookingData().bookingId());
-                            });
-
 
                         }
 
@@ -94,13 +83,6 @@ public class PaymentEventHandler {
                             bookingData.bookingId(),
                             bookingData.seatIds()
                     );
-
-                    runAfterCommit(() -> {
-                        seatHoldService.release(
-                                bookingData.bookingId(),
-                                bookingData.eventId(),
-                                bookingData.seatIds());
-                    });
                 }
             }
 
@@ -108,21 +90,6 @@ public class PaymentEventHandler {
             log.debug("Event already processed!");
         }
 
-    }
-
-    private void runAfterCommit(Runnable action) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            action.run();
-                        }
-                    }
-            );
-        } else {
-            action.run();
-        }
     }
 
 

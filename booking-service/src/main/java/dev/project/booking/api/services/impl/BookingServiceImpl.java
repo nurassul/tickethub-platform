@@ -3,7 +3,10 @@ package dev.project.booking.api.services.impl;
 import dev.project.booking.api.exceptions.BusinessConflictException;
 import dev.project.booking.api.exceptions.SeatAlreadyReservedException;
 import dev.project.booking.api.services.*;
-import dev.project.booking.dto.*;
+import dev.project.booking.dto.BookingResponse;
+import dev.project.booking.dto.CreateBookingRequest;
+import dev.project.booking.dto.PaymentResponse;
+import dev.project.booking.dto.PaymentStartResponse;
 import dev.project.booking.dto.feign.ValidateSeatsRequest;
 import dev.project.booking.dto.feign.ValidatedSeatsResponse;
 import dev.project.booking.feign.EventServiceClient;
@@ -159,13 +162,7 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public void cancelBooking(UUID bookingId, String guestToken) {
         guestBookingAccessService.requireAccess(bookingId, guestToken);
-        BookingData data = persistenceService.cancel(bookingId);
-
-        seatHoldService.release(
-                data.bookingId(),
-                data.eventId(),
-                data.seatIds()
-        );
+        persistenceService.cancel(bookingId);
     }
 
 

@@ -1,10 +1,8 @@
 package dev.project.booking.repository.entity;
 
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import dev.project.booking.repository.entity.enums.RedisTaskOperation;
+import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
@@ -17,10 +15,13 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "redis_cleanup_tasks")
-public class RedisCleanupTask {
+@Table(name = "redis_tasks")
+public class RedisTask {
 
     @Id
+    private UUID id;
+
+    @Column(name = "booking_id", nullable = false)
     private UUID bookingId;
 
     @Column(name = "created_at", nullable = false)
@@ -32,6 +33,9 @@ public class RedisCleanupTask {
     @Column(name = "attempts", nullable = false)
     private int attempts;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "operation", nullable = false)
+    private RedisTaskOperation operation;
 
 
 

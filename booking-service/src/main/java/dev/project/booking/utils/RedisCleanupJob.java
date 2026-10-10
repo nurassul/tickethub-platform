@@ -23,13 +23,13 @@ public class RedisCleanupJob {
 
     @Scheduled(fixedDelay = 5000)
     public void cleanUp() {
-        var bookingIds = redisCleanupRepository.findReadyBookingIds(Instant.now(), PageRequest.of(0,100));
+        var taskIds = redisCleanupRepository.findReadyTaskIds(Instant.now(), PageRequest.of(0,100));
 
-        for (UUID bookingId : bookingIds) {
+        for (UUID taskId : taskIds) {
             try {
-                redisCleanupService.process(bookingId);
+                redisCleanupService.process(taskId);
             } catch (Exception e) {
-                log.error("Error while cleaning: bookingId={}", bookingId, e);
+                log.error("Error while cleaning: taskId={}", taskId, e);
             }
         }
     }

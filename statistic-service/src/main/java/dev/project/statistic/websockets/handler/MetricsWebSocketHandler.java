@@ -46,9 +46,11 @@ public class MetricsWebSocketHandler extends TextWebSocketHandler {
         }
 
         try {
+            var snapshot = statisticsService.getStatistics();
+
             var metrics = Map.of(
-                    "totalBookings", statisticsService.getTotalBookings(),
-                    "totalTickets", statisticsService.getTotalTickets(),
+                    "totalBookings", snapshot.totalBookings(),
+                    "totalTickets", snapshot.totalTickets(),
                     "timestamp", Instant.now().toString()
             );
 
