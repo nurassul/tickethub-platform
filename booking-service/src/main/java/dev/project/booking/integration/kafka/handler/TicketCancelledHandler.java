@@ -4,15 +4,10 @@ package dev.project.booking.integration.kafka.handler;
 import dev.project.booking.api.services.BookingPersistenceService;
 import dev.project.booking.integration.kafka.event.TicketCancelledEvent;
 import dev.project.booking.integration.kafka.service.ProcessedEventService;
-import dev.project.booking.redis.service.SeatHoldService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
-
-import java.util.List;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -21,8 +16,6 @@ public class TicketCancelledHandler {
 
     private final ProcessedEventService processedEventService;
     private final BookingPersistenceService bookingPersistenceService;
-    private final SeatHoldService seatHoldService;
-
 
     private static final String CONSUMER_NAME = "booking-ticket-events-v1";
 
@@ -37,14 +30,6 @@ public class TicketCancelledHandler {
                     event.payload().eventId(),
                     event.payload().seatId()
             );
-
-            runAfterCommit(() -> {
-                seatHoldService.releaseSold(
-                        event.payload().bookingId(),
-                        event.payload().eventId(),
-                        List.of(event.payload().seatId())
-                );
-            });
 
 
             log.info(
@@ -61,22 +46,6 @@ public class TicketCancelledHandler {
         }
 
 
-    }
-
-
-    private void runAfterCommit(Runnable action) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            action.run();
-                        }
-                    }
-            );
-        } else {
-            action.run();
-        }
     }
 
 }

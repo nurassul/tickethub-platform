@@ -1,30 +1,52 @@
 package dev.project.statistic.api.service;
 
 
+import dev.project.statistic.repository.ProcessedEventRepository;
+import dev.project.statistic.repository.StatisticRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class StatisticsService {
 
-    private final AtomicInteger totalBookings = new AtomicInteger(0);
-    private final AtomicInteger totalTickets = new AtomicInteger(0);
+    private static final String CONSUMER_NAME = "statistic-event-v1";
+
+    private final ProcessedEventRepository processedEventRepository;
+    private final StatisticRepository statisticRepository;
 
 
-    public void addBooking() {
-        totalBookings.incrementAndGet();
+    @Transactional
+    public boolean addBooking(UUID eventId) {
+        if (!processedEventRepository.tryRegister(CONSUMER_NAME, eventId)) {
+            return false;
+        }
+
+        statisticRepository.incrementBookings();
+        return true;
     }
 
-    public void addTickets(int count) {
-        totalTickets.addAndGet(count);
+    @Transactional
+    public boolean addTickets(UUID eventId, int count) {
+        if (count <= 0) {
+            throw new IllegalArgumentException("Ticket count must be positive");
+        }
+
+        if (!processedEventRepository.tryRegister(CONSUMER_NAME, eventId)) {
+            return false;
+        }
+
+        statisticRepository.incrementTickets(count);
+        return true;
     }
 
-    public int getTotalTickets() {
-        return totalTickets.get();
+    public StatisticRepository.StatisticsSnapshot getStatistics() {
+        return statisticRepository.getStatistics();
     }
 
-    public int getTotalBookings() {
-        return totalBookings.get();
-    }
+
+
 }

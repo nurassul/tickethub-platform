@@ -2,11 +2,14 @@ FROM eclipse-temurin:21-jdk-jammy AS build
 
 WORKDIR /app
 
+ENV GRADLE_USER_HOME=/root/.gradle
+
 COPY . .
 RUN chmod +x gradlew
 
 
-RUN ./gradlew :booking-service:bootJar --no-daemon -x test
+RUN --mount=type=cache,id=tickethub-gradle,target=/root/.gradle,sharing=locked \
+    ./gradlew :booking-service:bootJar --no-daemon --console=plain -x test
 
 RUN JAR_FILE=$(find booking-service/build/libs \
     -type f \

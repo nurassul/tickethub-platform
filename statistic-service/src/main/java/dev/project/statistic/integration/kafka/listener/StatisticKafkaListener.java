@@ -11,6 +11,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Slf4j
 @RequiredArgsConstructor
 @Component
@@ -36,9 +38,15 @@ public class StatisticKafkaListener {
                 String bookingId = payload.path("bookingId").asText();
 
                 int ticketsCount = payload.path("ticketIds").size();
-                statisticService.addTickets(ticketsCount);
 
-                log.info("ticket.generated handled: bookingId={}, added {} tickets", bookingId, ticketsCount);
+                UUID eventId = UUID.fromString(root.path("eventId").asText());
+
+                if (statisticService.addTickets(eventId, ticketsCount)) {
+                    log.info(
+                            "ticket.generated handled: bookingId={}, added {} tickets",
+                            bookingId, ticketsCount
+                    );
+                }
             }
         }
 
@@ -54,9 +62,11 @@ public class StatisticKafkaListener {
                 JsonNode payload = root.path("payload");
                 String bookingId = payload.path("bookingId").asText();
 
-                statisticService.addBooking();
+                UUID eventId = UUID.fromString(root.path("eventId").asText());
 
-                log.info("booking.confirmed handled: bookingId={}", bookingId);
+                if (statisticService.addBooking(eventId)) {
+                    log.info("booking.confirmed handled: bookingId={}", bookingId);
+                }
             }
         }
     }

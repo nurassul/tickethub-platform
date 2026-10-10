@@ -2,10 +2,14 @@ FROM eclipse-temurin:21-jdk-jammy AS build
 
 WORKDIR /app
 
+ENV GRADLE_USER_HOME=/root/.gradle
+
 COPY . .
 RUN chmod +x gradlew
 
-RUN ./gradlew :event-service:bootJar --no-daemon -x test
+# Share downloaded Gradle dependencies between Java services.
+RUN --mount=type=cache,id=tickethub-gradle,target=/root/.gradle,sharing=locked \
+    ./gradlew :event-service:bootJar --no-daemon --console=plain -x test
 
 RUN JAR_FILE=$(find event-service/build/libs \
     -type f \

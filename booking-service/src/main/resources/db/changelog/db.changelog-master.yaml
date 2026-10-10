@@ -17,3 +17,5 @@ databaseChangeLog:
       file: db/changelog/changeset/008-create-cancelled-events.sql
   - include:
       file: db/changelog/changeset/009-create-redis-cleanup-tasks.sql
+  - include:
+      file: db/changelog/changeset/010-convert-redis-cleanup-to-tasks.sql

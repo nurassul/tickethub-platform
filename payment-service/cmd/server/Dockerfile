@@ -3,11 +3,14 @@ FROM golang:1.25.7-bookworm AS builder
 WORKDIR /build
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,id=tickethub-go-mod,target=/go/pkg/mod,sharing=locked \
+    go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux \
+RUN --mount=type=cache,id=tickethub-go-mod,target=/go/pkg/mod,sharing=locked \
+    --mount=type=cache,id=tickethub-go-build,target=/root/.cache/go-build,sharing=locked \
+    CGO_ENABLED=0 GOOS=linux \
     go build \
     -trimpath \
     -ldflags="-s -w" \
