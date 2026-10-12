@@ -3,14 +3,13 @@ package dev.project.integration.kafka.handler;
 
 import dev.project.repository.mongodb.NotificationRepository;
 import dev.project.repository.mongodb.entity.NotificationDocument;
-import dev.project.service.EmailService;
-import dev.project.utils.QrCodeGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -18,8 +17,6 @@ import java.util.List;
 public class TicketEventHandler {
 
     private final NotificationRepository notificationRepository;
-    private final EmailService emailService;
-    private final QrCodeGenerator qrCodeGenerator;
 
     private static final String TICKET_GENERATED_TYPE = "TICKET_GENERATED";
 
@@ -27,9 +24,11 @@ public class TicketEventHandler {
     public void handleTicketsGenerated(
             String customerEmail,
             String bookingId,
-            List<String> ticketIds
+            List<String> ticketIds,
+            UUID eventId
     ) {
         var notification = NotificationDocument.builder()
+                .id(eventId.toString())
                 .type(TICKET_GENERATED_TYPE)
                 .recipientEmail(customerEmail)
                 .subject("Your ticket on TicketHub")
@@ -38,31 +37,13 @@ public class TicketEventHandler {
                 .status("PENDING")
                 .build();
 
-        notification = notificationRepository.save(notification);
-
         try {
-            byte[] qrCode = qrCodeGenerator.generateQrCode(ticketIds.getFirst());
-
-            emailService.sendTicketEmail(
-                    customerEmail,
-                    "TicketHub - Booking #" + bookingId,
-                    ticketIds.getFirst(),
-                    qrCode
-            );
-
-            notification.setStatus("SENT");
-            notification.setSentAt(Instant.now());
-            notificationRepository.save(notification);
-
-            log.info("Notification SENT: email={}, bookingId={}, ticketIds={}",
-                    customerEmail, bookingId, ticketIds);
-        } catch (Exception e) {
-            notification.setStatus("FAILED");
-            notification.setErrorMessage(e.getMessage());
-            notificationRepository.save(notification);
-
-            log.error("Notification FAILED: email={}, bookingId={}", customerEmail, bookingId, e);
+            notification = notificationRepository.insert(notification);
+        } catch (DuplicateKeyException e) {
+            return;
         }
+
+        log.info("Notification sent to queue: id={}, bookingId={}", notification.getId(), bookingId);
     }
 
 

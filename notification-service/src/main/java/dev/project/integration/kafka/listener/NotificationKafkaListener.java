@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -30,9 +31,11 @@ public class NotificationKafkaListener {
         JsonNode root = objectMapper.readTree(record.value());
         String eventType = root.path("eventType").asText();
 
+
         switch (eventType) {
             case TICKET_GENERATED_TYPE -> {
                 JsonNode payload = root.path("payload");
+                var eventId = UUID.fromString(root.path("eventId").asText());
 
                 String customerEmail = payload.path("customerEmail").asText();
                 String bookingId = payload.path("bookingId").asText();
@@ -44,7 +47,8 @@ public class NotificationKafkaListener {
                 ticketEventHandler.handleTicketsGenerated(
                         customerEmail,
                         bookingId,
-                        ticketIds
+                        ticketIds,
+                        eventId
                 );
 
                 log.info("ticket.generated handled: bookingId={}", bookingId);
