@@ -31,4 +31,11 @@ public class NotificationDocument {
 
     private Instant sentAt;
 
+    private int attempts;
+
+    @Builder.Default
+    private Instant nextAttemptAt = Instant.now();
+    private Instant lockedUntil;
+    private String lockToken;
+
 }
