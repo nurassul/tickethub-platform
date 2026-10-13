@@ -1,6 +1,6 @@
 <div align="center">
-  <h1>🎟️ Tickethub Platform</h1>
-  <p><b>A modern, scalable, and fully observable microservices platform for event management and ticket booking.</b></p>
+  <h1>🎟️ Design and Implementation of a Distributed Booking System with Concurrent Resource Management and Event-Driven Inter-Service Communication</h1>
+  <p><b>TicketHub is distributed ticket booking platform built to solve real concurrency and reliability challenges: atomic multi-seat locking via Redis Lua scripts, exactly-once payment processing with Transactional Outbox, and cascade cancellation across 5 services via Kafka.</b></p>
 
   <!-- Tech Stack Badges -->
   <img src="https://img.shields.io/badge/Java_21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java" />
