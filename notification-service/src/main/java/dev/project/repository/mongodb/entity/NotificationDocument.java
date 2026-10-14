@@ -33,8 +33,7 @@ public class NotificationDocument {
 
     private int attempts;
 
-    @Builder.Default
-    private Instant nextAttemptAt = Instant.now();
+    private Instant nextAttemptAt;
     private Instant lockedUntil;
     private String lockToken;
 
