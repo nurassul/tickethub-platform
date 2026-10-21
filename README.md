@@ -1,204 +1,173 @@
 <div align="center">
-  <h1>🎟️ Design and Implementation of a Distributed Booking System with Concurrent Resource Management and Event-Driven Inter-Service Communication</h1>
-  <p><b>TicketHub is distributed ticket booking platform built to solve real concurrency and reliability challenges: atomic multi-seat locking via Redis Lua scripts, exactly-once payment processing with Transactional Outbox, and cascade cancellation across 5 services via Kafka.</b></p>
+  <h1>🎟️ TicketHub Platform</h1>
+  <p><strong>A distributed ticket-booking backend built with Java and Go.</strong></p>
+  <p>Seat reservations · Mock payments · Event-driven fulfillment · Recoverable background work</p>
 
-  <!-- Tech Stack Badges -->
-  <img src="https://img.shields.io/badge/Java_21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java" />
-  <img src="https://img.shields.io/badge/Go_1.21-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go" />
-  <img src="https://img.shields.io/badge/Spring_Boot_3-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white" alt="Spring" />
-  <img src="https://img.shields.io/badge/Apache_Kafka-231F20?style=for-the-badge&logo=apache-kafka&logoColor=white" alt="Kafka" />
-  <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
-  <br/>
-  <img src="https://img.shields.io/badge/gRPC-244c5a?style=for-the-badge&logo=grpc&logoColor=white" alt="gRPC" />
-  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
-  <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white" alt="Grafana" />
-  <img src="https://img.shields.io/badge/Jaeger-60C0A8?style=for-the-badge&logo=jaeger&logoColor=white" alt="Jaeger" />
+  <img src="https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white" alt="Java 21" />
+  <img src="https://img.shields.io/badge/Spring_Boot-3.5.0-6DB33F?style=flat-square&logo=springboot&logoColor=white" alt="Spring Boot 3.5.0" />
+  <img src="https://img.shields.io/badge/Go-1.25.7-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go 1.25.7" />
+  <img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL 15" />
+  <img src="https://img.shields.io/badge/Kafka-events-231F20?style=flat-square&logo=apachekafka&logoColor=white" alt="Apache Kafka" />
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose" />
+
+  <p>
+    <a href="docs/architecture.md">Architecture</a> ·
+    <a href="docs/booking-flow.md">Booking lifecycle</a> ·
+    <a href="docs/local-development.md">Local setup</a> ·
+    <a href="docs/testing.md">Tests</a> ·
+    <a href="docs/project-status.md">Status & next steps</a>
+  </p>
 </div>
 
-<br/>
+---
 
-## 🏗️ System Architecture
+## What the project explores
 
-The platform is designed around strict microservice boundaries. Each service owns its data, and they communicate via synchronous **gRPC/REST** for critical paths, and asynchronous **Kafka** events for eventual consistency.
+TicketHub is a learning and portfolio project about coordinating a purchase across independent services. Its main problems are competing requests for the same seat, repeated messages, payment outcomes arriving after cancellation, and background work recovering after failure.
+
+The current implementation includes event publishing and search, a **10-minute booking hold**, a separate payment-start operation, mock payment success/failure, ticket issuance and scanning, email with a QR code for each ticket, and a live statistics dashboard.
+
+**Current stage:** stabilization and automated testing. Payments are simulated; the Docker Compose stack is a local development environment. Known cancellation, delivery, and setup limitations are recorded in [project status](docs/project-status.md).
+
+## Architecture at a glance
+
+Six domain services sit behind or alongside a Spring Cloud Gateway. Booking uses synchronous HTTP and gRPC for immediate decisions; Kafka carries domain events to downstream services.
 
 ```mermaid
-graph TD
-    %% Define Styles
-    classDef client fill:#2a9d8f,stroke:#21867a,stroke-width:2px,color:#fff,font-weight:bold
-    classDef gateway fill:#e9c46a,stroke:#d4a373,stroke-width:2px,color:#333,font-weight:bold
-    classDef javaService fill:#e76f51,stroke:#d00000,stroke-width:2px,color:#fff
-    classDef goService fill:#4ea8de,stroke:#0077b6,stroke-width:2px,color:#fff
-    classDef db fill:#457b9d,stroke:#1d3557,stroke-width:2px,color:#fff,shape:cylinder
-    classDef infra fill:#f4a261,stroke:#e76f51,stroke-width:2px,color:#fff
+flowchart TB
+    Client["Client / API tools"] --> Gateway["API Gateway"]
+    Gateway --> Core["Event · Booking · Ticket<br/>Java / Spring Boot APIs"]
+    Core -->|"Booking → Payment: gRPC"| Payment["Payment service · Go"]
+    Core <-.->|"Domain events"| Kafka["Kafka"]
+    Payment <-.->|"Payment and booking events"| Kafka
+    Kafka -.-> Notification["Notification service<br/>Email + QR"]
+    Kafka -.-> Statistics["Statistic service<br/>Live dashboard"]
 
-    %% Nodes
-    Client([📱 Client / Web App]):::client
-    Gateway[🚪 API Gateway<br/>Spring Cloud Gateway]:::gateway
-    Keycloak[🔐 Keycloak<br/>Auth & IAM]:::infra
-
-    subgraph Microservices
-        Event[📅 Event Service<br/>Java / Spring]:::javaService
-        Ticket[🎟️ Ticket Service<br/>Java / Spring]:::javaService
-        Booking[🛒 Booking Service<br/>Java / Spring]:::javaService
-        Payment[💳 Payment Service<br/>Go / Gin]:::goService
-    end
-
-    subgraph Data Layer
-        EventDB[(Event DB<br/>Postgres)]:::db
-        TicketDB[(Ticket DB<br/>Postgres)]:::db
-        BookingDB[(Booking DB<br/>Postgres)]:::db
-        PaymentDB[(Payment DB<br/>Postgres)]:::db
-        Redis[(Redis<br/>Seat Locks)]:::db
-    end
-
-    Kafka((🔥 Apache Kafka<br/>Event Bus)):::infra
-
-    %% Edges (Traffic)
-    Client -->|REST| Gateway
-    Client -.->|OAuth2 Token| Keycloak
-    Gateway -->|Verify Token| Keycloak
-
-    Gateway -->|REST| Event
-    Gateway -->|REST| Ticket
-    Gateway -->|REST| Booking
-
-    Booking -- gRPC --> Payment
-    Booking -->|REST / Feign| Event
-
-    %% Edges (Database)
-    Event --> EventDB
-    Ticket --> TicketDB
-    Booking --> BookingDB
-    Payment --> PaymentDB
-    Booking <--> Redis
-
-    %% Edges (Async Events)
-    Booking -.->|Outbox Pattern| Kafka
-    Payment -.->|Outbox Pattern| Kafka
-    Kafka -.->|Consume| Ticket
-    Kafka -.->|Consume| Booking
+    classDef edge fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+    classDef java fill:#ecfdf5,stroke:#059669,color:#064e3b
+    classDef go fill:#eef2ff,stroke:#6366f1,color:#312e81
+    classDef bus fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+    class Client,Gateway edge
+    class Core,Notification,Statistics java
+    class Payment go
+    class Kafka bus
 ```
 
----
+Solid arrows show synchronous calls; dashed arrows show asynchronous delivery. This overview omits storage, authentication, and some internal calls for readability. See the [detailed architecture](docs/architecture.md) for those boundaries.
 
-## 🔄 Core Business Flow (Booking & Payment)
+| Component | Responsibility | Storage / integration |
+|---|---|---|
+| `api-gateway` | Routing, role-based JWT checks, rate limiting and fallback | Keycloak, Redis |
+| `event-service` | Events, seat definitions, publishing and search | PostgreSQL, Elasticsearch, Kafka |
+| `booking-service` | Holds, reservations, guest access, payment coordination and expiry | PostgreSQL, Redis, HTTP, gRPC, Kafka |
+| `payment-service` | Mock payment state, idempotent creation and compensation | Go, PostgreSQL, gRPC, HTTP, Kafka |
+| `ticket-service` | Ticket issuance, scanning and cancellation | PostgreSQL, Kafka, internal HTTP |
+| `notification-service` | Persistent email jobs, retries and QR generation | MongoDB, Kafka, SMTP / Mailpit |
+| `statistic-service` | Persistent counters and live dashboard snapshots | PostgreSQL, Kafka, WebSocket |
 
-The most complex part of the system is guaranteeing that a user doesn't double-book a seat, and ensuring that a successful payment *always* generates a ticket. We achieve this using **Distributed Redis Locks** and the **Transactional Outbox Pattern**.
+## A purchase, step by step
 
-```mermaid
-sequenceDiagram
-    autonumber
-    
-    actor User
-    participant Gateway as API Gateway
-    participant Booking as Booking Service
-    participant Event as Event Service
-    participant Redis as Redis (Locks)
-    participant Payment as Payment Service (Go)
-    participant Kafka as Kafka Event Bus
-    participant Ticket as Ticket Service
+1. Select seats from a published event.
+2. Create a booking with a client-generated `X-Booking-Token` and `Idempotency-Key`. The booking enters `HOLD`; payment is **not** started by this request.
+3. Start payment with `POST /api/v1/bookings/{bookingId}/payment` using the same booking token.
+4. Complete the payment through the local mock API.
+5. Payment events drive booking confirmation. Booking events drive ticket issuance, and ticket events create email jobs.
+6. Read tickets through the guest-protected API and inspect the email in Mailpit. Downstream results become available asynchronously.
 
-    User->>Gateway: POST /bookings (eventId, seatIds)
-    Gateway->>Booking: Route Request
-    
-    %% Validation & Locking
-    rect rgb(240, 248, 255)
-        Note right of Booking: 1. Validate & Distributed Lock
-        Booking->>Event: GET /events/{id}/seats (Validate availability)
-        Event-->>Booking: Seats Validated
-        Booking->>Redis: TryHoldSeats(seatIds, TTL: 15m)
-        alt Seats already held
-            Redis-->>Booking: Lock Failed
-            Booking-->>User: 409 Conflict (Seats taken)
-        else Lock Acquired
-            Redis-->>Booking: Success
-        end
-    end
+The [booking lifecycle](docs/booking-flow.md) describes the requests, transitions, and late-payment/cancellation outcomes. A booking can remain `CANCELLED` while its payment is `REFUNDED`: these are states of different entities.
 
-    %% Booking Creation
-    rect rgb(245, 255, 245)
-        Note right of Booking: 2. Save Booking & gRPC Call
-        Booking->>Booking DB: Save Booking (Status: PENDING)
-        Booking->>Payment: gRPC: CreatePayment(Amount, IdempotencyKey)
-        Payment->>Payment DB: Save Payment (Status: PENDING)
-        Payment-->>Booking: Return Payment URL & ID
-        Booking-->>User: 201 Created (Payment URL)
-    end
+## Reliability mechanisms and their boundaries
 
-    %% Payment Processing (Async)
-    User->>Payment: Redirect to Payment URL (Mock Checkout)
-    Payment->>Payment DB: Mark Payment as SUCCEEDED
-    
-    rect rgb(255, 245, 245)
-        Note right of Payment: 3. Outbox Pattern (Guarantee Delivery)
-        Payment->>Payment DB: Insert into outbox_events (PaymentSucceeded)
-        Note over Payment,Kafka: Async Relay picks up Outbox event
-        Payment-)Kafka: Publish tickethub.payment.events.v1
-    end
+| Mechanism | What it does | Boundary |
+|---|---|---|
+| Redis Lua seat holds | Coordinates temporary multi-seat holds | PostgreSQL reservations also enforce seat uniqueness; Redis is not the only protection |
+| Booking row locks | Serializes competing changes to one booking | Cross-service outcomes still require events and compensation |
+| Idempotency and processed-event records | Makes retries recognizable in the implemented paths | Keys and payload semantics matter; broader race tests are still planned |
+| Transactional outbox | Commits a business change and its outgoing event in the same local database transaction | Kafka publication happens later and can repeat; search-change publishing currently bypasses outbox |
+| Persistent Redis tasks | Records `MARK_SOLD` / `RELEASE` work for retry | Concurrent cleanup/enqueue behavior still needs a targeted test |
+| MongoDB task leases and tokens | Lets another email worker reclaim expired work and rejects stale completion updates | SMTP sending and marking `SENT` are not atomic; a crash can still cause duplicate email |
 
-    %% Async Resolution
-    Kafka-)Booking: Consume PaymentSucceeded Event
-    Booking->>Booking DB: Update Booking (Status: CONFIRMED)
-    Booking->>Redis: MarkSeatsSold(seatIds)
-    Booking->>Booking DB: Insert into outbox_events (BookingConfirmed)
-    Booking-)Kafka: Publish tickethub.booking.events.v1
+The delivery model is **at-least-once with idempotent handling where implemented**, not a blanket exactly-once guarantee. The project does not claim production availability or benchmarked throughput.
 
-    Kafka-)Ticket: Consume BookingConfirmed Event
-    Ticket->>Ticket DB: Generate Tickets (PDFs/QRs)
-    Note right of Ticket: Tickets are now ready for the user!
+## Run locally
+
+Start with the [local development guide](docs/local-development.md). It covers environment variables, manual Keycloak realm setup, host ports, and troubleshooting. The current `.env-example` is empty and no realm import is bundled, so a fresh checkout needs those setup steps first.
+
+Once configured, run from the repository root:
+
+```sh
+docker compose config --quiet
+docker compose up -d --build
+docker compose ps
 ```
 
----
+To rebuild only an edited service:
 
-## ✨ Key Architectural Patterns
+```sh
+docker compose build booking-api
+docker compose up -d --no-deps booking-api
+```
 
-* **Polyglot Ecosystem:** Core services are written in **Java (Spring Boot)** for rapid domain modeling, while the `payment-service` is written in **Go** to handle high-throughput, low-latency financial transactions.
-* **Transactional Outbox:** Instead of dual-writing to the database and Kafka (which causes race conditions), services write events to an `outbox_events` table in the same ACID transaction as the business entity. A background relay then pushes these events to Kafka ensuring exactly-once/at-least-once delivery.
-* **Distributed Locking:** Redis is used via `SeatHoldService` to prevent double-booking of seats across multiple instances of the booking service.
-* **Full Observability (PLG + OTel):** 
-  * 📈 **Prometheus & Grafana:** Hardware and application metrics (Micrometer/Go metrics).
-  * 🕵️ **Jaeger (OpenTelemetry):** Distributed tracing across Java and Go boundaries via gRPC metadata and HTTP headers.
-  * 📜 **Loki & Promtail:** Centralized logging with Trace ID injection (Log Correlation).
+| Local entry point | Address |
+|---|---|
+| Public API gateway | [localhost:8080](http://localhost:8080) |
+| Mock payments | [localhost:8085/api/v1/mock/payments](http://localhost:8085/api/v1/mock/payments) — API prefix |
+| Keycloak | [localhost:8180](http://localhost:8180) |
+| Email inbox — Mailpit | [localhost:8025](http://localhost:8025) |
+| Live statistics | [localhost:8087/dashboard.html](http://localhost:8087/dashboard.html) |
+| Grafana | [localhost:3000](http://localhost:3000) |
+| Prometheus | [localhost:9091](http://localhost:9091) |
+| Jaeger | [localhost:16686](http://localhost:16686) |
 
----
+Observability components are included in Compose. Complete trace propagation, dashboards, and metrics coverage across every service are still being verified; see [architecture](docs/architecture.md).
 
-## 🚦 Getting Started
+## Tests
 
-### Prerequisites
-* Docker & Docker Compose
-* Ports `8080`, `8180`, `3000`, `9091`, and `16686` must be free.
+The current source contains **13 notification tests**: 4 Mockito tests for the sender and 9 MongoDB integration tests for task ownership and state transitions. Other domains still need automated scenario coverage. See the [test guide](docs/testing.md) for requirements and the coverage inventory.
 
-### Running the Platform
+With a compatible JDK and Docker running, on Windows:
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/nurassul/tickethub-platform.git
-   cd tickethub-platform
-   ```
+```powershell
+.\gradlew.bat :notification-service:test
+```
 
-2. **Start the infrastructure and services:**
-   ```bash
-   # Add --build to compile the latest Java/Go code
-   docker-compose up -d --build
-   ```
+On a POSIX shell:
 
-3. **Access the UIs:**
-   * **API Gateway:** `http://localhost:8080`
-   * **Grafana (Metrics & Logs):** `http://localhost:3000` *(Login: admin / admin)*
-   * **Jaeger (Distributed Tracing):** `http://localhost:16686`
-   * **Prometheus:** `http://localhost:9091`
+```sh
+./gradlew :notification-service:test
+```
 
-## 📁 Directory Structure
+The MongoDB tests use Testcontainers; the whole application stack does not need to be running. A successful container build is not a test run.
+
+## Documentation map
+
+| Document | Read it for |
+|---|---|
+| [Architecture](docs/architecture.md) | Service boundaries, data ownership, event routes and guarantees |
+| [Booking lifecycle](docs/booking-flow.md) | Purchase, fulfillment, cancellation and payment state diagrams |
+| [Local development](docs/local-development.md) | Setup, credentials configuration, URLs, rebuilds and diagnostics |
+| [Testing](docs/testing.md) | Existing tests, execution commands and the next testing steps |
+| [Project status](docs/project-status.md) | Known limitations and a bounded plan for the first version |
+| [Mentoring backlog](docs/mentoring-backlog.md) | Detailed historical review and acceptance notes, in Russian |
+
+<details>
+<summary><strong>Repository layout</strong></summary>
+
 ```text
-tickethub-platform/
-├── api-gateway/       # Spring Cloud Gateway (Entrypoint)
-├── booking-service/   # Java 21 / Spring Boot (Booking Domain)
-├── event-service/     # Java 21 / Spring Boot (Events & Seats Domain)
-├── payment-service/   # Go 1.21 / Gin / gRPC (Payment Domain)
-├── ticket-service/    # Java 21 / Spring Boot (Ticket Generation)
-├── contracts/         # gRPC Protobuf definitions (.proto)
-├── db-init/           # PostgreSQL initialization scripts
-├── prometheus/        # Observability configurations
-└── docker-compose.yml # Main infrastructure file
+tickethub/
+├── api-gateway/             # Routing and gateway security
+├── booking-service/         # Booking, reservations and Redis tasks
+├── event-service/           # Event catalogue, seats and search
+├── payment-service/         # Go payment service and SQL migrations
+├── ticket-service/          # Ticket lifecycle
+├── notification-service/    # Email jobs, QR generation and current tests
+├── statistic-service/       # Persistent metrics and live dashboard
+├── contracts/               # Protobuf contract and event examples
+├── db-init/                 # Logical PostgreSQL database initialization
+├── docs/                    # Architecture, flows, setup and roadmap
+├── prometheus/              # Scrape configuration
+├── promtail/                # Log collection configuration
+└── docker-compose.yml       # Local application and infrastructure stack
 ```
+
+</details>
