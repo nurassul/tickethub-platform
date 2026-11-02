@@ -20,7 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cglib.core.Local;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -304,7 +303,6 @@ public class BookingPersistenceServiceTest {
     }
 
 
-
     @Test
     public void shouldRejectAnotherPaymentForConfirmedBooking() {
         var bookingId = UUID.randomUUID();
@@ -330,7 +328,7 @@ public class BookingPersistenceServiceTest {
 
         assertEquals(PaymentConfirmationOutcome.REJECTED, actualResult.outcome());
         assertNull(actualResult.bookingData());
-        assertEquals("Booking already confirmed by another payment",actualResult.rejectionReason());
+        assertEquals("Booking already confirmed by another payment", actualResult.rejectionReason());
         assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
         assertEquals(confirmedPaymentId, booking.getConfirmedPaymentId());
 
@@ -339,7 +337,6 @@ public class BookingPersistenceServiceTest {
         verifyNoInteractions(bookingOutboxService);
         verifyNoInteractions(redisTaskService);
     }
-
 
 
     @Test
@@ -365,7 +362,7 @@ public class BookingPersistenceServiceTest {
 
         assertEquals(PaymentConfirmationOutcome.REJECTED, actualResult.outcome());
         assertNull(actualResult.bookingData());
-        assertEquals("Booking is no longer hold",actualResult.rejectionReason());
+        assertEquals("Booking is no longer hold", actualResult.rejectionReason());
         assertEquals(BookingStatus.CANCELLED, booking.getStatus());
         assertNull(booking.getConfirmedPaymentId());
 
@@ -405,7 +402,7 @@ public class BookingPersistenceServiceTest {
 
         assertEquals(PaymentConfirmationOutcome.REJECTED, actualResult.outcome());
         assertNull(actualResult.bookingData());
-        assertEquals("Payment occurred after booking expiration",actualResult.rejectionReason());
+        assertEquals("Payment occurred after booking expiration", actualResult.rejectionReason());
         assertEquals(BookingStatus.HOLD, booking.getStatus());
         assertNull(booking.getConfirmedPaymentId());
 
@@ -414,7 +411,6 @@ public class BookingPersistenceServiceTest {
         verifyNoInteractions(bookingOutboxService);
         verifyNoInteractions(redisTaskService);
     }
-    
 
 
     @Test
@@ -446,7 +442,7 @@ public class BookingPersistenceServiceTest {
 
         assertEquals(PaymentConfirmationOutcome.REJECTED, actualResult.outcome());
         assertNull(actualResult.bookingData());
-        assertEquals("Payment occurred after booking expiration",actualResult.rejectionReason());
+        assertEquals("Payment occurred after booking expiration", actualResult.rejectionReason());
         assertEquals(BookingStatus.HOLD, booking.getStatus());
         assertNull(booking.getConfirmedPaymentId());
 
@@ -582,7 +578,7 @@ public class BookingPersistenceServiceTest {
         assertEquals(BookingStatus.HOLD, booking.getStatus());
         assertNull(booking.getConfirmedPaymentId());
         assertEquals(SeatReservationStatus.HOLD, reservation.getStatus());
-        assertEquals(expiresAt,reservation.getExpiresAt());
+        assertEquals(expiresAt, reservation.getExpiresAt());
 
         verifyNoInteractions(redisTaskService);
         verifyNoInteractions(bookingOutboxService);
@@ -646,7 +642,7 @@ public class BookingPersistenceServiceTest {
         assertEquals(BookingStatus.HOLD, booking.getStatus());
         assertNull(booking.getConfirmedPaymentId());
         assertEquals(SeatReservationStatus.HOLD, reservation.getStatus());
-        assertEquals(expiresAt,reservation.getExpiresAt());
+        assertEquals(expiresAt, reservation.getExpiresAt());
 
         verifyNoInteractions(redisTaskService);
         verifyNoInteractions(bookingOutboxService);
@@ -710,7 +706,7 @@ public class BookingPersistenceServiceTest {
         assertEquals(BookingStatus.HOLD, booking.getStatus());
         assertNull(booking.getConfirmedPaymentId());
         assertEquals(SeatReservationStatus.HOLD, reservation.getStatus());
-        assertEquals(expiresAt,reservation.getExpiresAt());
+        assertEquals(expiresAt, reservation.getExpiresAt());
 
         verifyNoInteractions(redisTaskService);
         verifyNoInteractions(bookingOutboxService);
@@ -742,7 +738,6 @@ public class BookingPersistenceServiceTest {
                 .build();
 
 
-
         when(bookingRepository.findByIdForUpdate(bookingId))
                 .thenReturn(Optional.of(booking));
         when(bookingSeatRepository.findAllByBooking_Id(bookingId))
@@ -771,6 +766,146 @@ public class BookingPersistenceServiceTest {
         verifyNoInteractions(redisTaskService);
         verifyNoInteractions(bookingOutboxService);
     }
+
+    @Test
+    public void shouldRejectPaymentWhenReservationIsNotHeld() {
+        var bookingId = UUID.randomUUID();
+        var paymentId = UUID.randomUUID();
+        var eventId = UUID.randomUUID();
+        var seatId = UUID.randomUUID();
+        var expiresAt = LocalDateTime.parse("2026-11-01T12:00:00");
+
+        var booking = Booking.builder()
+                .id(bookingId)
+                .eventId(eventId)
+                .status(BookingStatus.HOLD)
+                .expiresAt(expiresAt)
+                .customerEmail("test@mail.com")
+                .build();
+
+        var bookingSeat = BookingSeat.builder()
+                .booking(booking)
+                .seatId(seatId)
+                .status(BookingSeatStatus.ACTIVE)
+                .priceAtBooking(BigDecimal.valueOf(1000))
+                .build();
+
+        var reservation = SeatReservation.builder()
+                .booking(booking)
+                .eventId(eventId)
+                .seatId(seatId)
+                .status(SeatReservationStatus.CONFIRMED)
+                .expiresAt(null)
+                .build();
+
+
+        when(bookingRepository.findByIdForUpdate(bookingId))
+                .thenReturn(Optional.of(booking));
+        when(bookingSeatRepository.findAllByBooking_Id(bookingId))
+                .thenReturn(List.of(bookingSeat));
+        when(seatReservationRepository.findAllByBooking_Id(bookingId))
+                .thenReturn(List.of(reservation));
+
+        var paidAt = expiresAt.toInstant(ZoneOffset.UTC).minusSeconds(1);
+
+        var actualResult = bookingPersistenceService.confirmPayment(
+                bookingId,
+                paymentId,
+                paidAt,
+                100000L,
+                "KZT"
+        );
+
+        assertEquals(PaymentConfirmationOutcome.REJECTED, actualResult.outcome());
+        assertNull(actualResult.bookingData());
+        assertEquals("Booking reservations are inconsistent", actualResult.rejectionReason());
+
+        assertEquals(BookingStatus.HOLD, booking.getStatus());
+        assertNull(booking.getConfirmedPaymentId());
+
+
+        verifyNoInteractions(redisTaskService);
+        verifyNoInteractions(bookingOutboxService);
+
+    }
+
+
+
+    @Test
+    public void shouldReleaseReservationsWhenPaymentFails() {
+        var bookingId = UUID.randomUUID();
+        var eventId = UUID.randomUUID();
+        var seatId = UUID.randomUUID();
+        var expiresAt = LocalDateTime.parse("2026-11-01T12:00:00");
+
+        var booking = Booking.builder()
+                .id(bookingId)
+                .eventId(eventId)
+                .status(BookingStatus.HOLD)
+                .expiresAt(expiresAt)
+                .customerEmail("test@mail.com")
+                .build();
+
+        var bookingSeat = BookingSeat.builder()
+                .booking(booking)
+                .seatId(seatId)
+                .status(BookingSeatStatus.ACTIVE)
+                .priceAtBooking(BigDecimal.valueOf(1000))
+                .build();
+
+        var reservation = SeatReservation.builder()
+                .booking(booking)
+                .eventId(eventId)
+                .seatId(seatId)
+                .status(SeatReservationStatus.HOLD)
+                .expiresAt(expiresAt)
+                .build();
+
+
+        when(bookingRepository.findByIdForUpdate(bookingId))
+                .thenReturn(Optional.of(booking));
+        when(bookingSeatRepository.findAllByBooking_Id(bookingId))
+                .thenReturn(List.of(bookingSeat));
+        when(seatReservationRepository.findAllByBooking_Id(bookingId))
+                .thenReturn(List.of(reservation));
+
+
+        var actualData = bookingPersistenceService.failPayment(bookingId);
+
+        assertEquals(BookingStatus.PAYMENT_FAILED, booking.getStatus());
+
+        assertEquals(bookingId, actualData.bookingId());
+        assertEquals(eventId, actualData.eventId());
+        assertEquals(List.of(seatId), actualData.seatIds());
+        assertEquals("test@mail.com", actualData.customerEmail());
+
+        verify(seatReservationRepository).deleteAllByBooking_Id(bookingId);
+        verify(redisTaskService).enqueue(bookingId, RedisTaskOperation.RELEASE);
+    }
+
+
+    @Test
+    public void shouldRejectFailedPaymentForConfirmedBooking() {
+        var bookingId = UUID.randomUUID();
+
+        var booking = Booking.builder()
+                .id(bookingId)
+                .status(BookingStatus.CONFIRMED)
+                .build();
+
+        when(bookingRepository.findByIdForUpdate(bookingId))
+                .thenReturn(Optional.of(booking));
+
+        assertThrows(BusinessConflictException.class, () -> bookingPersistenceService.failPayment(bookingId));
+
+        assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
+
+        verifyNoInteractions(bookingSeatRepository);
+        verifyNoInteractions(seatReservationRepository);
+        verifyNoInteractions(redisTaskService);
+        verifyNoInteractions(bookingOutboxService);
+    }
+
 
 
 

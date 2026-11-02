@@ -38,8 +38,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -617,11 +615,6 @@ public class BookingServiceImplTest {
 
         verifyNoInteractions(paymentGrpcClient);
     }
-
-
-
-
-
 
 
 }
